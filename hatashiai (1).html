@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>風来斬 — 影絵ふたり果し合い</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>if(typeof Peer==='undefined')document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>')</script>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;color:#f1dfc4}
+#game{position:fixed;top:0;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;display:flex;flex-direction:column;background:#000}
+.half{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.half.p2{transform:rotate(180deg)}
+.half canvas{display:block;width:100%;flex:1;min-height:0}
+.divider{height:3px;background:linear-gradient(90deg,#000,#7a2a1c,#000);flex:0 0 auto}
+.ctrl{flex:0 0 auto;height:40%;display:flex;gap:8px;padding:8px 10px calc(10px + env(safe-area-inset-bottom));background:#0c0807;box-sizing:border-box;border-top:1px solid #3a1a12}
+.p2 .ctrl{padding-bottom:calc(10px + env(safe-area-inset-top))}
+.mv{flex:1.35;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:.75fr .85fr 1.15fr;gap:6px}
+.ak{flex:1.45;display:grid;grid-template-columns:1fr 1fr .8fr;gap:7px}
+.btn.atk.hint{background:#4a3018;border-color:#fff2d0;box-shadow:0 0 0 2px #fff2d0 inset,0 0 18px rgba(255,236,190,.9)}
+.btn.palm{border-color:#7a6a5a;background:#1d1714}
+.btn.palm svg{width:70%;height:50%;color:#f1dfc4}
+.btn.palm small{margin-top:5px;font-size:13px;font-weight:700;font-family:inherit}
+.ak.k3{flex:1.4;grid-template-columns:1fr 1fr 1fr}
+.btn.atk.k{display:none;border-color:#7a50b0}
+.ak.k3 .btn.atk.k{display:flex}
+.ak.k3 .btn.atk small{font-size:11.5px;white-space:nowrap;letter-spacing:-.03em}
+.btn.atk.k svg{color:#d8b8ff;filter:drop-shadow(0 0 6px rgba(180,120,255,.6))}
+.btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:14px;background:#1b1210;border:1.5px solid #4a2418;color:#f1dfc4;font-size:16px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.5);overflow:hidden;text-align:center;line-height:1.15}
+.btn.on{background:#4f2116;box-shadow:none;transform:translateY(1px)}
+.btn small{font-size:10px;opacity:.6;margin-top:3px;font-family:sans-serif;letter-spacing:-.02em}
+.btn.atk svg{width:80%;height:58%;overflow:visible}
+.btn.atk.v svg{color:#ffb08a;filter:drop-shadow(0 0 6px rgba(255,110,60,.6))}
+.btn.atk.h svg{color:#ffe08a;filter:drop-shadow(0 0 6px rgba(255,200,70,.6))}
+.btn.atk small{margin-top:6px;font-size:14px;opacity:.9;font-family:inherit;font-weight:700}
+.ctrl{position:relative}
+.chase{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);display:none;flex-direction:column;align-items:center;gap:5px;z-index:4;width:88%}
+.chase.show{display:flex}
+.chase .cl{font-size:13px;color:#ffd27a;letter-spacing:.2em;text-shadow:0 0 4px #000,0 0 4px #000}
+.chase .grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:64px;gap:8px;width:100%}
+.chase .btn{background:rgba(27,18,16,.93)}
+.chase .btn.atk svg{width:60%;height:58%}
+.chase .btn.atk small{font-size:13px;margin-top:2px}
+.chase .btn.blow{font-size:19px;font-weight:700;letter-spacing:.05em;border-color:#6a6a7a;background:rgba(24,22,30,.93)}
+.chase .btn.blow small{font-size:10px;letter-spacing:0;margin-top:2px}
+.chase .btn.sp{font-size:21px;font-weight:700;letter-spacing:.1em;background:rgba(42,20,16,.93);border-color:#8a4a30}
+.chase .btn.sp small{font-size:10px;letter-spacing:0;margin-top:1px}
+.chase .btn.sp.off{opacity:.25;pointer-events:none}
+.chase .tb{width:100%;height:5px;background:rgba(0,0,0,.6)}
+.chase .tb i{display:block;height:100%;width:100%;background:#ffd27a}
+.nosk{border-color:#6a5040}
+.nosk.sel{border-color:#ffb070;background:#4a1a0e;opacity:1}
+.nosk.dim{opacity:.3}
+.btn.skb{grid-column:1/3;flex-direction:column;gap:1px;background:#1a1220;border-color:#4a3060}
+.btn.skb b{font-size:16px;letter-spacing:.08em}
+.btn.skb small{margin:0;font-size:9.5px}
+.btn.spb{flex-direction:row;gap:6px;white-space:nowrap;font-size:16px;font-weight:700;letter-spacing:.1em;opacity:.35}
+.btn.spb small{margin:0;font-size:9.5px;letter-spacing:0}
+.btn.spb.ready{opacity:1;background:#2a1410;border-color:#8a4a30}
+.btn.spb.used{opacity:.2}
+.btn.skb.used{opacity:.35}
+.btn.skb.active{border-color:#ffb070;background:#2a1610}
+.pick{font-size:14px;margin:4px 0 6px;color:#f6c48a}
+.pick small{font-size:11px;opacity:.7}
+.skills{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;width:100%;max-width:440px}
+.sk{border:1.5px solid #6a3020;border-radius:9px;padding:4px 3px;background:#1d0f0b}
+.sk b{display:block;font-size:13.5px;color:#f6c48a}
+.sk span{display:block;font-size:8.5px;font-family:sans-serif;opacity:.8;line-height:1.25;margin-top:1px}
+.chars{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:100%;max-width:440px}
+.chr{border:1.5px solid #4a3a50;border-radius:9px;padding:4px 2px;background:#16101a}
+.chr b{display:block;font-size:12.5px;color:#e8d8ff;white-space:nowrap}
+.chr span{display:block;font-size:8px;font-family:sans-serif;opacity:.75;line-height:1.2}
+.chr.sel{border-color:#c8a0ff;background:#2e1c40}
+.sk.sel{border-color:#ffb070;background:#4a1a0e}
+.sk.dim{opacity:.3}
+.btn.atk{background:#21110e}
+.btn.atk.v{border-color:#9a3420}
+.btn.atk.h{border-color:#9a7a30}
+.btn.step{font-size:13px}
+.btn.step::after{content:'';position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(0,0,0,.65);transform-origin:left center;transform:scaleX(var(--cd,0));pointer-events:none}
+.ov{position:absolute;inset:0;background:rgba(8,3,2,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 18px;box-sizing:border-box;z-index:5;text-align:center}
+.ov.hide{display:none}
+.ov h1{margin:0;font-size:30px;letter-spacing:.15em;color:#f6c48a;text-shadow:0 0 18px rgba(230,90,30,.6)}
+.ov .sub{font-size:12px;opacity:.7;margin:0 0 6px;letter-spacing:.2em}
+.ov ul{margin:0 0 6px;padding:0;list-style:none;font-size:11.5px;line-height:1.45;text-align:left;max-width:360px;font-family:sans-serif;opacity:.9}
+.ov li::before{content:'・';color:#e0612a}
+.ov .big{font-size:72px;font-weight:700;margin:0 0 6px;line-height:1}
+.ov .win{color:#f6c48a;text-shadow:0 0 24px rgba(240,120,40,.8)}
+.ov .lose{color:#8a6a5a}
+.ready{padding:12px 34px;border-radius:30px;border:1.5px solid #e0612a;background:#3a140c;color:#f6dcbc;font-size:18px;letter-spacing:.2em}
+.ready.done{background:#111;border-color:#555;color:#888}
+.who{font-size:12px;opacity:.6;margin-top:8px;font-family:sans-serif}
+body.net-host #h1,body.net-host .divider{display:none}
+body.net-guest #h0,body.net-guest .divider{display:none}
+body.net-guest .half.p2{transform:none}
+body.net-guest .p2 .ctrl{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+#netmenu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,3,2,.9);z-index:20}
+#netbody{max-width:440px;width:88%;text-align:center;padding:24px;border:1px solid #5a2a1a;background:#140a08;border-radius:12px;user-select:text;-webkit-user-select:text}
+#netmenu h1{margin:0;font-size:40px;letter-spacing:.2em;color:#f6c48a;text-shadow:0 0 18px rgba(230,90,30,.6)}
+#netmenu p{margin:10px 0;line-height:1.6}#netmenu .big{font-size:18px}#netmenu .dim{opacity:.7}#netmenu .small{font-size:12px}
+#netmenu button{display:block;width:100%;font:inherit;font-size:18px;font-weight:700;padding:12px;margin:10px 0;border:1.5px solid #e0612a;border-radius:10px;background:#3a140c;color:#f6dcbc;cursor:pointer}
+#netmenu button.sec{background:#1d0f0b;border-color:#8a4a30}
+#netmenu .row{display:flex;gap:6px}#netmenu .row input{flex:1;min-width:0;font-size:13px;padding:9px;border-radius:6px;border:1px solid #5a2a1a;background:#000;color:#fff}
+#netmenu .row button{width:auto;margin:0;font-size:14px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div id="netmenu"><div id="netbody"></div></div>
+<div id="game">
+  <div class="half p2" id="h1"></div>
+  <div class="divider"></div>
+  <div class="half p1" id="h0"></div>
+</div>
+<script>
+'use strict';
+// ====== 設定 ======
+const C={
+  minX:60,maxX:940,minDist:78,
+  walkF:150,walkB:120,
+  stepDist:220,stepTime:.17,stepCD:1.0,
+  atk:{
+    v:{name:'縦',dmg:7,hit:28,reach:135,startup:.40,base:1.35},
+    h:{name:'横',dmg:5,hit:25,reach:155,startup:.34,base:1.25},
+    x:{name:'重撃',dmg:0,hit:80,reach:150,startup:1.35,base:1}, // 重撃:受け不能・振りかぶり長い
+    k:{name:'袈裟',dmg:8,hit:30,reach:140,startup:.46,base:1.4}  // 袈裟斬り(必殺で解禁)
+  },
+  whiff:1.2,            // 空振り硬直
+  followBase:1.0,       // 斬り合い:追撃の受付時間(初回)
+  decay:.88,            // 1合ごとに短くなる割合
+  minGuard:.42,         // 受けの受付時間の下限(これ以上短くならない)
+  minFollow:.40,        // 追撃の受付時間の下限
+  hp:100,winsNeeded:2,
+  sp:{n:5,dmg:4,input:2.2,first:1.0,win:.7}, // 必殺:5連撃(1試合1回)
+  heavyCost:60,heavyWhiff:1.9,                // 重撃:気力60消費、空振りの隙1.9秒
+  palm:{reach:98,startup:.13,dmg:6,kb:1200,whiff:.5}, // 張り手:超至近・発生が早い・軽い・大きく吹き飛ばす
+  chainMul:1.0,                               // 斬り合いの1太刀の倍率
+  dbl:.28,                                    // ステップの二度押し判定(秒)
+  wave:{speed:460,dmg:15,block:170},          // 波動剣
+  flameDur:10,flameBurn:2,                    // 龍炎舞:10秒間 攻撃力2倍、毎秒2ずつ身を焦がす
+  meteor:2.4,meteorDur:8,meteorCD:.3,         // 流星剣:8秒間、気力なし・ほぼ連発で長距離ステップ
+  zaneiDur:7,tenganDur:8,shippu:{dist:240,time:.28},                                 // 残影:7秒間、太刀筋の予兆が相手に見えない
+  staMax:100,staGuard:10,staStep:30,staRegen:28,stun:1.2  // スタミナ:満タンで10太刀分
+};
+// ---- 使い手 ----
+const CHARS={
+  samurai:{name:'風来坊',desc:'長い刀、重い一撃。標準の侍',walkF:150,walkB:120,stepDist:220,size:1},
+  sasuke:{name:'サスケ2',desc:'クナイ使い。足が速く出が早い。間合いは短く一撃は軽い',walkF:195,walkB:160,stepDist:285,size:.72,
+    atk:{v:{dmg:5,hit:20,reach:108,startup:.30,base:1.35},h:{dmg:4,hit:17,reach:118,startup:.25,base:1.25}}},
+  sora:{name:'ソラ',desc:'薙刀の娘。遠くから届くが出は遅め',walkF:145,walkB:125,stepDist:230,size:1.25,
+    atk:{v:{dmg:6,hit:24,reach:180,startup:.48,base:1.35},h:{dmg:5,hit:21,reach:195,startup:.42,base:1.25}}},
+  oni:{name:'鬼丸',desc:'大太刀の鬼。鈍いが硬く、一撃が重い',walkF:115,walkB:95,stepDist:170,size:1.15,hp:125,
+    atk:{v:{dmg:9,hit:36,reach:150,startup:.55,base:1.35},h:{dmg:8,hit:32,reach:165,startup:.48,base:1.25}}},
+  kohaku:{name:'コハク',desc:'狐面の居合い。横の抜き打ちが神速',walkF:160,walkB:130,stepDist:230,size:1,
+    atk:{v:{dmg:6,hit:24,reach:130,startup:.42,base:1.35},h:{dmg:6,hit:27,reach:150,startup:.20,base:1.25}}}
+};
+function maxHp(f){return CHR(f).hp||C.hp;}
+function CHR(f){return CHARS[f.ch]||CHARS.samurai;}
+function AT(f,t){const a=CHR(f).atk;return (a&&a[t])||C.atk[t];}
+const SKILLS={
+  hado:{name:'波動剣',short:'前方に波動を放つ',desc:'剣を振るい前方へ波動を放つ。当たれば痛手、斬りで打ち消される'},
+  enbu:{name:'龍炎舞',short:'攻撃力2倍・身を焦がす',desc:'刀に炎をまとう。10秒間 攻撃力2倍、だが体力が削れ続ける'},
+  ryusei:{name:'流星剣',short:'8秒 大跳躍し放題',desc:'8秒間、気力を使わず流星のような長距離ステップを撃ち放題'},
+  zanei:{name:'残影',short:'7秒 太刀筋を隠す',desc:'7秒間、自分の太刀筋の光が相手に見えない'},
+  tengan:{name:'天眼',short:'8秒 受けを見通す',desc:'8秒間、連撃の最中も受けるべき斬りが光って見える'},
+  teppeki:{name:'鉄壁',short:'次の一撃を無効',desc:'構えるとこの戦の間、次に受ける一撃(決着も)を一度だけ無効にする'},
+  shippu:{name:'疾風斬',short:'踏み込み横一閃',desc:'一気に踏み込みながら横に斬る。間合いの外から届く奇襲'}
+};
+const KAN=['〇','一','二','三','四','五','六','七','八','九','十'];
+
+// ====== 斬撃の形(三日月) ======
+// v: 縦斬り = 縦長の「)」形 / h: 横斬り = 横長の「‿」形
+function crescentPts(type,R){
+  const out=[],inn=[],N=20;
+  for(let i=0;i<=N;i++){const t=i/N*2-1,th=(1-t*t)*R*.27;
+    if(type==='v'||type==='k'||type==='x'){const a=t*1.15;out.push([Math.cos(a)*R,Math.sin(a)*R]);inn.push([Math.cos(a)*(R-th),Math.sin(a)*(R-th)]);}
+    else{ // 横斬り:手前から奥へ回り込む太刀筋を、遠近で潰れた楕円として描く
+      const u=(t+1)/2,th2=Math.PI*(.85-1.65*u),rx=R*.6,ry=R*.24;
+      const near=.2+.8*(Math.sin(th2)+1)/2,w=R*.2*near*Math.pow(Math.sin(u*Math.PI),.6);
+      const cx=Math.cos(th2),sy=Math.sin(th2);
+      out.push([cx*(rx+w*.5),sy*(ry+w*.5)]);inn.push([cx*(rx-w*.5),sy*(ry-w*.5)]);}}
+  return out.concat(inn.reverse());
+}
+function crescentPath(ctx,type,R){const pts=crescentPts(type,R);ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();}
+function svgPath(type,R,dx,dy){return 'M'+crescentPts(type,R).map(q=>(q[0]+dx).toFixed(1)+' '+(q[1]+dy).toFixed(1)).join('L')+'Z';}
+const ICON={
+  v:`<svg viewBox="-30 -46 80 92"><path d="${svgPath('v',38,-14,0)}" fill="currentColor" opacity=".3"/><path d="${svgPath('v',40,-2,0)}" fill="currentColor"/></svg>`,
+  k:`<svg viewBox="-46 -46 92 92"><g transform="rotate(38)"><path d="${svgPath('v',38,-14,0)}" fill="currentColor" opacity=".3"/><path d="${svgPath('v',40,-2,0)}" fill="currentColor"/></g></svg>`,
+  h:`<svg viewBox="-50 -32 100 64"><ellipse cx="0" cy="0" rx="42" ry="17" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="${svgPath('h',70,0,0)}" fill="currentColor"/></svg>`
+};
+
+// ====== UI 生成 ======
+const H=[document.getElementById('h0'),document.getElementById('h1')];
+const ATB=[],AK=[],CV=[],OV=[],SPB=[[],[]],SKB=[],STB=[[],[]],CH=[];
+H.forEach((el,p)=>{
+  el.innerHTML=`
+  <canvas></canvas>
+  <div class="ctrl">
+    <div class="mv">
+      <div class="btn skb" data-a="sk"><b>剣技</b><small></small></div>
+      <div class="btn step" data-a="sb">« 後ステップ</div>
+      <div class="btn step" data-a="sf">前ステップ »</div>
+      <div class="btn" data-a="b">◀ 後ろ</div>
+      <div class="btn" data-a="f">前 ▶</div>
+    </div>
+    <div class="ak">
+      <div class="btn atk v" data-a="v">${ICON.v}<small>縦切り</small></div>
+      <div class="btn atk h" data-a="h">${ICON.h}<small>横切り</small></div>
+      <div class="btn palm" data-a="p"><svg viewBox="-24 -30 48 56"><path d="M-12 22 L-14 0 Q-15 -6 -11 -6 Q-8 -6 -8 -1 L-8 -20 Q-8 -25 -4 -25 Q0 -25 0 -20 L0 -24 Q0 -29 4 -29 Q8 -29 8 -24 L8 -20 Q8 -25 12 -25 Q16 -25 16 -20 L16 -14 Q16 -18 19 -18 Q22 -18 22 -13 L22 4 Q22 18 10 22 Z" fill="currentColor"/></svg><small>張り手</small></div>
+      <div class="btn atk k" data-a="k">${ICON.k}<small>袈裟斬り</small></div>
+    </div>
+  </div>
+  <div class="ov"></div>`;
+  CV[p]=el.querySelector('canvas');
+  AK[p]=el.querySelector('.ak');
+  ATB[p]={v:el.querySelector('.ak [data-a=v]'),h:el.querySelector('.ak [data-a=h]')};
+  OV[p]=el.querySelector('.ov');
+  el.querySelectorAll('.btn').forEach(b=>{
+    const a=b.dataset.a;
+    if(a==='sk')SKB[p]=b;
+    if(a==='sb'||a==='sf')STB[p].push(b);
+    if(a==='sp')SPB[p].push(b);
+    const down=e=>{e.preventDefault();initAudio();try{b.setPointerCapture(e.pointerId)}catch(_){ }b.classList.add('on');input(p,a,true);};
+    const up=e=>{e.preventDefault();b.classList.remove('on');input(p,a,false);};
+    b.addEventListener('pointerdown',down);
+    b.addEventListener('pointerup',up);
+    b.addEventListener('pointercancel',up);
+    b.addEventListener('lostpointercapture',()=>{if(b.classList.contains('on')){b.classList.remove('on');input(p,a,false);}});
+  });
+});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+// PC確認用キーボード (1P: A/D移動(2回でステップ) Q剣技 L必殺 J縦 K横 / 2P: →/←移動 ↑剣技 /必殺 ,縦 .横)
+const KEYS={a:[0,'b'],d:[0,'f'],q:[0,'sk'],j:[0,'v'],k:[0,'h'],l:[0,'p'],'/':[1,'p'],
+ArrowRight:[1,'b'],ArrowLeft:[1,'f'],ArrowUp:[1,'sk'],',':[1,'v'],'.':[1,'h']};
+addEventListener('keydown',e=>{const m=KEYS[e.key];if(m&&!e.repeat){initAudio();input(m[0],m[1],true);}});
+addEventListener('keyup',e=>{const m=KEYS[e.key];if(m)input(m[0],m[1],false);});
+
+// ====== 音 ======
+let AC=null;
+function initAudio(){if(AC)return;try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+function noise(dur,freq,q,gain,type){if(!AC)return;const n=Math.max(1,AC.sampleRate*dur|0),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);const s=AC.createBufferSource();s.buffer=b;const f=AC.createBiquadFilter();f.type=type||'bandpass';f.frequency.value=freq;f.Q.value=q;const g=AC.createGain();g.gain.value=gain;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();}
+function tone(freq,dur,gain,type,to){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type||'sine';o.frequency.setValueAtTime(freq,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02);}
+const sfx={
+  swing(){noise(.2,1600,.7,.5)},
+  ready(){tone(520,.08,.05,'triangle')},
+  clang(){ // キィン!
+    noise(.025,7500,.8,.6,'highpass');
+    tone(2093,.75,.17,'sine',2060);tone(3140,.55,.10,'sine');tone(4420,.38,.07,'sine');tone(5660,.22,.05,'triangle');tone(1046,.3,.06,'square',1000);
+  },
+  taiko(){tone(95,.28,.4,'sine',55);noise(.08,300,.7,.35,'lowpass')},
+  stun(){tone(660,.5,.12,'triangle',220);tone(440,.6,.08,'sine',180)},
+  hit(){noise(.3,500,.6,.9,'lowpass');tone(140,.3,.45,'sine',50)},
+  step(){noise(.12,800,.6,.25)},
+  gong(){tone(150,1.6,.35,'sine',140);tone(300,1.1,.12,'sine')},
+  tick(){tone(880,.07,.06,'sine')},
+  slap(){noise(.08,2500,.7,.9,'highpass');tone(220,.12,.25,'sine',90)},
+  heavy(){tone(70,1.3,.4,'sawtooth',45);noise(1.2,200,.5,.4,'lowpass')},
+  wave(){noise(.5,1100,.6,.5);tone(300,.45,.12,'sawtooth',900)},
+  flame(){noise(.8,600,.4,.6,'lowpass');tone(120,.6,.2,'sawtooth',240)},
+  meteor(){tone(1400,.35,.08,'sine',2800);noise(.3,3500,.8,.25)}
+};
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
+
+// ====== 状態 ======
+function mkF(id){return{id,dir:id===0?1:-1,x:id===0?320:680,hp:C.hp,ghost:C.hp,state:'idle',st:0,dur:0,type:'v',resp:null,gpose:'v',
+  sta:100,staG:100,mf:false,mb:false,cdF:0,cdB:0,sv:0,kb:0,walk:0,moving:0,flash:0,wins:0,pose:{hx:18,hy:-64,a:-.4,lean:0}};}
+const F=[mkF(0),mkF(1)];
+const G={waves:[],phase:'title',pt:0,t:0,round:1,chain:null,fx:[],parts:[],pops:[],banner:null,shake:0,flash:0,cam:500,ready:[false,false]};
+
+function setState(f,s,dur){f.state=s;f.st=0;f.dur=dur||0;}
+
+// ====== 入力 ======
+function input(p,a,down){
+  const f=F[p];
+  if(a==='f'||a==='b'){
+    if(a==='f')f.mf=down;else f.mb=down;
+    if(down){ // 素早く二度押しでステップ
+      const now=performance.now()/1000;
+      if(f.tap&&f.tap.a===a&&now-f.tap.t<C.dbl){f.tap=null;if(G.phase==='fight')doStep(f,a==='f'?1:-1);}
+      else f.tap={a,t:now};
+    }
+    return;
+  }
+  if(!down)return;
+  if(G.phase!=='fight'||G.resetT>0)return;
+  if(a==='sk')return useSkill(p);
+  if(a==='p')return doPalm(f);
+  if(a==='sf'||a==='sb')return doStep(f,a==='sf'?1:-1);
+  if(a==='v'||a==='h'||(a==='k'&&G.kesa))return doAttack(f,a);
+}
+function doStep(f,s){
+  const met=f.meteor>0;
+  if(G.chain||f.state!=='idle'||(s>0?f.cdF:f.cdB)>0||(!met&&f.sta<C.staStep))return;
+  const dist=CHR(f).stepDist;
+  if(met){ // 流星剣:気力を使わず長距離ステップ
+    f.metStep=true;setState(f,'step',C.stepTime*1.5);f.sv=s*dist*C.meteor/f.dur;sfx.meteor();
+  }else{f.sta-=C.staStep;f.metStep=false;setState(f,'step',C.stepTime);f.sv=s*dist/C.stepTime;sfx.step();}
+  const cd=met?C.meteorCD:C.stepCD;
+  if(s>0)f.cdF=cd;else f.cdB=cd; // 前後で別々のチャージ
+}
+function doAttack(f,type){
+  if(G.chain)return chainPress(f.id,type);
+  if(f.state!=='idle')return;
+  // 迫る波動を斬りで打ち消す
+  const wv=G.waves.find(w=>w.owner!==f.id&&(f.x-w.x)*w.dir>0&&Math.abs(f.x-w.x)<C.wave.block);
+  if(wv){
+    G.waves.splice(G.waves.indexOf(wv),1);
+    f.type=type;setState(f,'strike',.28);slashFx(f,type);
+    sparks(wv.x,-80,'#cfe8ff',24);pop(wv.x,-120,'キン!','#fff4d0');sfx.clang();G.flash=.15;
+    return;
+  }
+  const o=F[1-f.id],dist=Math.abs(f.x-o.x);
+  // 相手の斬撃が来ている → 受けの入力として扱う(先押し優先・一度きり)
+  if(o.state==='startup'&&o.type!=='x'&&dist<=AT(o,o.type).reach+70){ // 重撃は受けられない→斬って止めるしかない
+    f.resp=type;setState(f,'guard');sfx.ready();return;
+  }
+  f.type=type;f.resp=null;setState(f,'startup',AT(f,type).startup);sfx.ready();
+}
+
+// ====== ゲーム進行 ======
+function mult(f){return f.flame>0?2:1;}
+function dmgOf(f,t){return AT(f,t).dmg*mult(f);}
+function chD(f,t){return Math.max(1,Math.round(dmgOf(f,t)*C.chainMul));} // 斬り合いで積み重なる1太刀ぶん
+function spD(f){return Math.max(1,Math.round(C.sp.dmg*mult(f)*C.chainMul));}
+// 受けの正誤:縦には横、横には縦、袈裟には袈裟でしか返せない
+function counters(resp,t){return t==='k'?resp==='k':(resp!=='k'&&resp!==t);}
+function counterOf(t){return t==='k'?'k':(t==='v'?'h':'v');}
+function hitOf(f,t){return AT(f,t).hit*mult(f);}
+function followWin(n){return Math.max(C.minFollow,C.followBase*Math.pow(C.decay,n-1));}
+function guardWin(n,t){return Math.max(C.minGuard,C.atk[t].base*Math.pow(C.decay,n));}
+
+function resolveNeutral(a){
+  const d=F[1-a.id],A=AT(a,a.type),dist=Math.abs(a.x-d.x);
+  slashFx(a,a.type);sfx.swing();
+  if(dist>A.reach){ // 空振り
+    setState(a,'recover',a.type==='x'?C.heavyWhiff:C.whiff);
+    if(d.state==='guard'){setState(d,'idle');d.resp=null;}
+    pop(a.x,-150,'空振り','#d8c0a8');
+    return;
+  }
+  if(a.type!=='x'&&d.state==='guard'&&d.resp&&counters(d.resp,a.type)){startChain(a,d);return;}
+  // 命中
+  setState(a,'strike',.3);
+  const dm=hitOf(a,a.type); // 立ち回りで当てた一撃は重い
+  if(!hurt(d,dm,a.type==='x',false,a.type))return;
+  if(a.type==='x'){G.banner={text:'重撃!',sub:null,t:0,dur:1.2};sfx.gong();}
+  pop(d.x,-150,'−'+dm,'#ff6a4a');
+}
+function startChain(atk0,grd){
+  // 最初の一太刀を受けきった側(grd)が攻め手に回り、斬りかかった側(atk0)は防戦になる
+  const dmg=chD(atk0,atk0.type);
+  clangFx(atk0,atk0.type);
+  const a=grd,d=atk0;
+  G.chain={a,d,count:1,accum:dmg,phase:'follow',t:0,dur:followWin(1),type:grd.resp,lastType:grd.resp,mid0:(a.x+d.x)/2,push:0};
+  d.gpose=counterOf(atk0.type);
+  setState(a,'locked');setState(d,'locked');a.resp=null;
+  // スローモーション+カットイン
+  G.cut={t:0,dur:1.3,a:a.id};sfx.gong();
+}
+function chainPress(p,type){
+  const c=G.chain;
+  if(c.phase==='follow'&&p===c.a.id){
+    c.phase='swing';c.type=type;c.t=0;c.dur=guardWin(c.count,type);sfx.taiko();return;
+  }
+  if(c.phase==='swing'&&p===c.d.id){
+    const dmg=chD(c.a,c.type);
+    if(counters(type,c.type)){ // 受け成功
+      c.count++;c.accum+=dmg;c.d.gpose=type;c.lastType=c.type;
+      c.phase='follow';c.t=0;c.dur=followWin(c.count);c.push+=13;
+      clangFx(c.a,c.type);slashFx(c.a,c.type);
+      drain(c.a);
+    }else endChain(c.d,c.accum+dmg,'wrong');
+    return;
+  }
+  if(c.phase==='spInput'&&p===c.a.id){ // 必殺:太刀筋を刻む
+    c.sp.push(type);sfx.taiko();
+    if(c.sp.length>=C.sp.n)beginSpExec();
+    return;
+  }
+  if(c.phase==='spExec'&&p===c.d.id){
+    const cur=c.sp[c.spi];
+    if(type!==cur){
+      c.count++;c.accum+=spD(c.a);c.d.gpose=type;c.lastType=cur;c.spi++;c.push+=8;
+      clangFx(c.a,cur);slashFx(c.a,cur);
+      drain(c.a);if(!G.chain)return;
+      if(c.spi>=C.sp.n){ // 必殺を受けきった
+        c.sp=null;c.phase='follow';c.t=0;c.dur=followWin(c.count);
+        G.banner={text:'必殺、見切った!',sub:null,t:0,dur:1.3};
+      }else{c.t=0;c.dur=C.sp.win;}
+    }else{c.type=cur;endChain(c.d,c.accum+(C.sp.n-c.spi)*spD(c.a),'special');}
+  }
+}
+function doPalm(f){
+  if(G.chain||f.state!=='idle')return;
+  setState(f,'palm',C.palm.startup);f.palmDone=false;sfx.swing();
+}
+function resolvePalm(f){
+  const o=F[1-f.id];f.palmDone=true;
+  if(Math.abs(f.x-o.x)>C.palm.reach){setState(f,'recover',C.palm.whiff);f.type='h';pop(f.x,-150,'空振り','#d8c0a8');return;}
+  setState(f,'palmHit',.3);
+  const sx=f.x+f.dir*42;G.parts.push({x:sx,y:-80,vx:0,vy:0,life:.25,t:0,col:'#fff4e0',kind:'ring'});
+  sparks(sx,-80,'#fff0d0',14);sfx.slap();
+  if(hurt(o,C.palm.dmg*mult(f),false)){
+    o.kb=C.palm.kb;setState(o,'hitstun',.6);
+    pop(o.x,-150,'−'+C.palm.dmg*mult(f),'#ff6a4a');
+  }
+}
+function useSkill(p){
+  const f=F[p];
+  if(G.chain||f.state!=='idle'||f.skillUsed||!f.skill)return;
+  f.skillUsed=true;
+  if(f.skill==='hado'){f.castDone=false;setState(f,'cast',.55);}
+  else if(f.skill==='enbu'){f.flame=C.flameDur;sfx.flame();G.flash=.25;pop(f.x,-165,'龍炎舞','#ffa040');}
+  else if(f.skill==='tengan'){f.tengan=C.tenganDur;sfx.meteor();pop(f.x,-165,'天眼','#e8f0ff');}
+  else if(f.skill==='teppeki'){f.shield=true;sfx.clang();pop(f.x,-165,'鉄壁','#b8d8ff');}
+  else if(f.skill==='shippu'){f.type='h';f.resp=null;setState(f,'startup',C.shippu.time);f.lunge=C.shippu.time;sfx.swing();pop(f.x,-165,'疾風斬','#e8fff0');}
+  else if(f.skill==='zanei'){f.zanei=C.zaneiDur;sfx.flame();pop(f.x,-165,'残影','#c8c8e0');}
+  else{f.meteor=C.meteorDur;sfx.meteor();pop(f.x,-165,'流星剣','#cfe8ff');}
+}
+function updateWaves(dt){
+  G.waves=G.waves.filter(w=>{
+    w.x+=w.dir*C.wave.speed*dt;w.t+=dt;
+    const tg=F[1-w.owner];
+    if((w.x-tg.x)*w.dir>-24){
+      if(tg.state==='locked'||G.phase!=='fight'){sparks(w.x,-80,'#cfe8ff',10);return false;}
+      if(hurt(tg,w.dmg,false))pop(tg.x,-150,'−'+w.dmg,'#ff6a4a');return false;
+    }
+    return Math.abs(w.x-tg.x)<1600;
+  });
+}
+function doSpecial(p){ // 重撃:気力を大きく使う、受け不能の大振り
+  const f=F[p];
+  if(G.phase!=='fight'||G.chain||f.state!=='idle'||f.sta<C.heavyCost)return;
+  f.sta-=C.heavyCost;f.type='x';f.resp=null;
+  setState(f,'startup',C.atk.x.startup);
+  sfx.heavy();pop(f.x,-175,'重撃','#ff5a3a');
+}
+function beginSpExec(){
+  const c=G.chain;
+  while(c.sp.length<C.sp.n)c.sp.push(Math.random()<.5?'v':'h');
+  c.phase='spExec';c.spi=0;c.t=0;c.dur=C.sp.first;
+}
+function drain(a){ // 受けに成功 → 攻撃側のスタミナを削る
+  const c=G.chain;
+  a.sta=Math.max(0,a.sta-C.staGuard);
+  if(a.sta<=0)endChain(a,c.accum,'stun');
+}
+function updateChain(dt){
+  const c=G.chain;if(!G.cut)c.t+=dt; // カットイン中は受付時間を止める
+  // 攻撃側が押し込んでいく
+  const mid=c.mid0+c.a.dir*c.push;
+  [c.a,c.d].forEach(f=>{const tg=mid-f.dir*56;f.x+=(tg-f.x)*Math.min(1,dt*8);});
+  if(c.t>=c.dur){
+    if(c.phase==='follow')resetChain();
+    else if(c.phase==='spInput')beginSpExec();
+    else if(c.phase==='spExec'){c.type=c.sp[c.spi];endChain(c.d,c.accum+(C.sp.n-c.spi)*spD(c.a),'special');}
+    else endChain(c.d,c.accum+chD(c.a,c.type),'late');
+  }
+}
+function resetChain(){ // 追撃しなかった → 互いに飛び退いて仕切り直し
+  const c=G.chain;G.chain=null;
+  [c.a,c.d].forEach(f=>{setState(f,'step',.32);f.sv=-C.stepDist*.75/.32;f.metStep=false;f.resp=null;});
+  G.banner={text:'仕切り直し',sub:null,t:0,dur:1.1};sfx.step();
+}
+function endChain(loser,dmg,why){
+  const c=G.chain;G.chain=null;
+  const win=F[1-loser.id];
+  // つばぜり合いの決着は、通常攻撃の一撃を下回らない
+  dmg=Math.max(dmg,why==='stun'?hitOf(win,'v'):hitOf(c.a,c.type==='h'?'h':'v'));
+  if(why==='stun'){
+    pop(loser.x,-160,'息切れ!','#ffe2b0');sfx.stun();
+    setState(win,'idle');
+    hurt(loser,dmg,true);
+    G.banner={text:c.count+'太刀 しのぎ切った!',sub:'−'+dmg,t:0,dur:1.6};
+    return;
+  }
+  win.type=why==='falter'?(c.lastType==='v'?'h':'v'):c.type;
+  setState(win,'strike',.45);
+  slashFx(win,win.type);
+  if(why==='falter')pop(loser.x,-150,'怯んだ!','#e8d0b0');
+  hurt(loser,dmg,true);
+  G.banner={text:why==='special'?'必殺、炸裂!':c.count+'合 斬り合い',sub:'−'+dmg,t:0,dur:1.5};
+}
+function hurt(d,dmg,big,stun,src){
+  if(d.state==='startup'&&d.type==='x'&&src!=='x'){ // 重撃の構え中は無敵(ただし重撃は通る) // 重撃の構え中は無敵(中断されない)
+    sparks(d.x,-90,'#ff7050',14);pop(d.x,-150,'効かぬ!','#ffb0a0');sfx.clang();G.shake=.3;
+    return false;
+  }
+  if(d.shield){ // 鉄壁:一撃を無効
+    d.shield=false;sparks(d.x,-80,'#b8d8ff',26);pop(d.x,-150,'鉄壁!','#b8d8ff');sfx.clang();G.flash=.3;
+    setState(d,'idle');d.kb=200;return false;
+  }
+  d.hp=Math.max(0,d.hp-dmg);
+  if(stun){setState(d,'stun',C.stun);d.kb=110;}
+  else{setState(d,'hitstun',big?.8:.55);d.kb=big?440:300;}
+  d.resp=null;d.flash=1;
+  G.shake=big?1:.55;G.flash=big?.55:.25;
+  sparks(d.x+d.dir*10,-75,'#ff4a2a',big?34:18);
+  sfx.hit();buzz(big?[60,40,90]:50);
+  if(d.hp<=0){
+    const w=F[1-d.id];w.wins++;
+    G.phase='ko';G.pt=0;sfx.gong();
+  }
+  return true;
+}
+function updateF(f,dt){
+  f.cdF=Math.max(0,f.cdF-dt);f.cdB=Math.max(0,f.cdB-dt);f.st+=dt;f.flash=Math.max(0,f.flash-dt*2.5);f.moving=0;
+  if(f.kb){f.x-=f.dir*f.kb*dt;f.kb*=Math.pow(.015,dt);if(f.kb<8)f.kb=0;}
+  const o=F[1-f.id];
+  switch(f.state){
+    case 'idle':{
+      let v=0;
+      if(G.phase==='fight'){const ch=CHR(f);if(f.mf&&!f.mb)v=ch.walkF;else if(f.mb&&!f.mf)v=-ch.walkB;}
+      f.x+=f.dir*v*dt;f.moving=v;if(v)f.walk+=dt*(v>0?10:-9);
+      if(v>0)f.sta=Math.min(C.staMax,f.sta+C.staRegen*dt); // 前進で回復
+      break;}
+    case 'step':f.x+=f.dir*f.sv*dt;f.moving=f.sv;
+      if(f.metStep)for(let i=0;i<3;i++)G.parts.push({x:f.x-f.dir*Math.random()*30,y:-10-Math.random()*110,vx:-f.dir*30,vy:0,life:.4,t:0,col:'#cfe8ff',kind:'fire'});
+      if(f.st>=f.dur){setState(f,'idle');f.metStep=false;}break;
+    case 'pass':{
+      const k=Math.min(1,f.st/f.dur);f.x=f.passFrom+(f.passTo-f.passFrom)*(1-Math.pow(1-k,2));
+      for(let i=0;i<3;i++)G.parts.push({x:f.x-f.dir*Math.random()*40,y:-20-Math.random()*100,vx:0,vy:0,life:.35,t:0,col:'#fff0d8',kind:'fire'});
+      if(k>=1){ // 抜けきった:向きを入れ替える(画面は閃光の中で反転)
+        F.forEach(g=>g.dir*=-1);
+        o.kb=160;slashFx(f,'h');sparks(o.x,-80,'#fff0c0',24);
+        G.flash=.9;G.shake=.5;sfx.clang();
+        setState(f,'strike',.35);
+      }
+      break;}
+    case 'palm':if(f.st>=f.dur)resolvePalm(f);break;
+    case 'palmHit':if(f.st>=f.dur)setState(f,'idle');break;
+    case 'cast':
+      if(!f.castDone&&f.st>=.2){f.castDone=true;G.waves.push({owner:f.id,x:f.x+f.dir*40,dir:f.dir,t:0,dmg:C.wave.dmg*mult(f)});sfx.wave();slashFx(f,'v');}
+      if(f.st>=f.dur)setState(f,'idle');break;
+    case 'startup':
+      if(f.lunge>0){f.x+=f.dir*C.shippu.dist/C.shippu.time*dt;f.lunge-=dt;f.moving=1;} // 疾風斬の踏み込み
+      if(f.type==='x'&&Math.random()<dt*40)G.parts.push({x:f.x+(Math.random()-.5)*50,y:-Math.random()*120,vx:(Math.random()-.5)*20,vy:-90-Math.random()*60,life:.45,t:0,col:Math.random()<.5?'#c01810':'#ff4a20',kind:'fire'});
+      if(f.st>=f.dur)resolveNeutral(f);break;
+    case 'guard':if(o.state!=='startup'){setState(f,'idle');f.resp=null;}break;
+    case 'recover':case 'hitstun':case 'strike':case 'stun':if(f.st>=f.dur)setState(f,'idle');break;
+  }
+}
+function separate(){
+  if(F.some(f=>f.state==='pass'))return;
+  const [p,q]=F[0].x<=F[1].x?[F[0],F[1]]:[F[1],F[0]];
+  let d=q.x-p.x;
+  if(d<C.minDist){const o=(C.minDist-d)/2;p.x-=o;q.x+=o;}
+  d=q.x-p.x;
+}
+
+// ====== 演出 ======
+function slashFx(f,type){G.fx.push({x:f.x,dir:f.dir,type,t:0,dur:.24,z:CHR(f).size});}
+function clangFx(a,type){
+  const d=F[1-a.id];
+  sparks((a.x+d.x)/2,type==='h'?-70:-90,'#fff0c0',22);
+  pop((a.x+d.x)/2,type==='v'?-120:-95,'キン!','#fff4d0');
+  sfx.clang();G.flash=.18;G.shake=.3;buzz(25);
+}
+function sparks(x,y,col,n){
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=120+Math.random()*320;
+    G.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-80,life:.3+Math.random()*.35,t:0,col});}
+}
+function pop(x,y,text,col){G.pops.push({x,y,text,col,t:0,dur:1.1});}
+
+// ====== ラウンド ======
+function blowAway(p){ // 追撃を諦め、相手を吹き飛ばして仕切り直し(ダメージなし)
+  const c=G.chain;
+  if(!c||c.phase!=='follow'||c.a.id!==p)return;
+  G.chain=null;G.cut=null;
+  c.a.type='h';setState(c.a,'strike',.45);slashFx(c.a,'h');
+  setState(c.d,'hitstun',.8);c.d.kb=900;c.d.resp=null;
+  sparks(c.d.x,-80,'#fff0c0',20);G.shake=.7;G.flash=.3;sfx.swing();sfx.taiko();
+  G.banner={text:'仕切り直し!',sub:null,t:0,dur:1.6};G.quietReset=true;
+  G.resetT=1.0;
+}
+function shikiri(){ // 仕切り直し:最初の立ち位置へ
+  const mid=(F[0].x+F[1].x)/2; // 無限の野:今いる場所を中心に、最初の間合いへ
+  F.forEach(f=>{f.dir=f.id===0?1:-1;f.x=mid+(f.id===0?-180:180);setState(f,'idle');f.kb=0;f.resp=null;f.sta=C.staMax;});
+  G.chain=null;G.waves=[];G.cam=mid;G.flash=.6;
+  if(!G.quietReset)G.banner={text:'仕切り直し!',sub:null,t:0,dur:1.2};G.quietReset=false;sfx.tick();
+}
+function resetRound(){
+  G.resetT=0;G.cut=null;G.kesa=false;
+  F.forEach(f=>{f.dir=f.id===0?1:-1;f.x=f.id===0?320:680;f.hp=f.ghost=maxHp(f);f.sta=f.staG=C.staMax;setState(f,'idle');f.resp=null;f.cdF=f.cdB=0;f.kb=0;f.flash=0;f.pose={hx:18,hy:-64,a:-.4,lean:0};f.skillUsed=false;f.flame=0;f.meteor=0;f.zanei=0;f.tengan=0;f.shield=false;f.lunge=0;f.metStep=false;f.tap=null;});
+  G.chain=null;G.waves=[];G.phase='intro';G.pt=0;G.cam=500;G.banner=null;G.pops=[];
+}
+function startMatch(){F.forEach(f=>{f.wins=0;f.spUsed=false;});G.round=1;resetRound();}
+
+function pickHTML(p){
+  const cur=F[p].ch||'samurai';
+  return `<div class="pick">使い手</div>
+  <div class="chars">${Object.entries(CHARS).map(([k,c])=>`<div class="chr${k===cur?' sel':''}" data-c="${k}"><b>${c.name}</b><span>${c.desc}</span></div>`).join('')}</div>
+  <div class="pick">剣技をひとつ選べ <small>(各戦で一度、次の戦で回復)</small></div>
+  <div class="skills">${Object.entries(SKILLS).map(([k,s])=>`<div class="sk" data-k="${k}"><b>${s.name}</b><span>${s.short}</span></div>`).join('')}<div class="sk nosk"><b>なし</b><span>剣技なしで始める</span></div></div>
+  <div class="who">${p===0?'一ノ侍(1P)':'二ノ侍(2P)'} ─ 選ぶと準備完了</div>`;
+}
+function showTitle(){
+  G.phase='title';G.ready=[false,false];
+  OV.forEach((o,p)=>{
+    o.classList.remove('hide');
+    o.innerHTML=`<h1>風来斬</h1><div class="sub">ふうらいざん ─ 影絵の果し合い</div>
+    <ul>
+      <li>太刀筋の形を見て<b>逆の斬り</b>で受ける。受けた側が攻め手となり連撃。<b>張り手</b>は至近で突き飛ばす。二本先取</li>
+    </ul>${pickHTML(p)}`;
+    bindPick(o,p);
+  });
+}
+function showOver(){
+  G.phase='over';G.ready=[false,false];
+  OV.forEach((o,p)=>{
+    const won=F[p].wins>=C.winsNeeded;
+    o.classList.remove('hide');
+    o.innerHTML=`<div class="big ${won?'win':'lose'}">${won?'勝':'敗'}</div>
+      <div class="sub">${KAN[F[p].wins]} 対 ${KAN[F[1-p].wins]} ─ もう一勝負</div>${pickHTML(p)}`;
+    bindPick(o,p);
+  });
+}
+function bindPick(o,p){
+  o.querySelectorAll('.chr').forEach(el=>el.addEventListener('pointerdown',e=>{
+    e.preventDefault();initAudio();if(G.ready[p])return;
+    F[p].ch=el.dataset.c;sfx.tick();netPick(p,'ch',F[p].ch);
+    o.querySelectorAll('.chr').forEach(x=>x.classList.toggle('sel',x===el));
+  }));
+  o.querySelectorAll('.sk,.nosk').forEach(el=>el.addEventListener('pointerdown',e=>{
+    e.preventDefault();initAudio();
+    if(G.ready[p])return;
+    F[p].skill=el.dataset.k||null;G.ready[p]=true;sfx.tick();netPick(p,'sk',F[p].skill);
+    o.querySelectorAll('.sk,.nosk').forEach(x=>x.classList.add(x===el?'sel':'dim'));
+    o.querySelector('.who').textContent='相手を待っています…';
+    if(!(NET&&NET.role==='guest'))tryStart();
+  }));
+}
+
+// ====== 構え(ポーズ) ======
+const P={
+  mid:{hx:18,hy:-64,a:-.4,lean:0},
+  vUp:{hx:0,hy:-114,a:-1.95,lean:-.16},
+  vDown:{hx:30,hy:-52,a:.95,lean:.2},
+  hBack:{hx:-12,hy:-58,a:2.95,lean:-.12},
+  charge:{hx:-14,hy:-66,a:2.55,lean:.12},
+  kUp:{hx:-8,hy:-106,a:-2.65,lean:-.14},   // 八相:刀を肩に担ぐ
+  kDown:{hx:30,hy:-50,a:.55,lean:.22},
+  xUp:{hx:-6,hy:-124,a:-1.75,lean:-.26},  // 重撃:大きく反り返って振りかぶる
+  xDown:{hx:34,hy:-40,a:1.2,lean:.32},
+  gK:{hx:18,hy:-86,a:-.85,lean:-.03},
+  hOut:{hx:32,hy:-70,a:-.08,lean:.18},
+  gV:{hx:10,hy:-106,a:-.05,lean:-.04},   // 横ボタン=刀を頭上に寝かせて縦斬りを受ける
+  gH:{hx:22,hy:-72,a:-1.45,lean:0},      // 縦ボタン=刀を立てて横斬りを受ける
+  hurt:{hx:4,hy:-58,a:1.0,lean:-.28},
+  palmPull:{hx:-4,hy:-70,a:-1.3,lean:-.08},  // 張り手:刀を立てて、空いた手を突き出す
+  palmOut:{hx:6,hy:-82,a:-1.45,lean:.3},
+  stun:{hx:12,hy:-44,a:1.35,lean:.3}
+};
+const strikeP=t=>t==='x'?P.xDown:t==='v'?P.vDown:t==='k'?P.kDown:P.hOut;
+const windP=t=>t==='x'?P.xUp:t==='v'?P.vUp:t==='k'?P.kUp:P.hBack;
+const guardP=b=>b==='h'?P.gV:b==='k'?P.gK:P.gH;
+const ease=x=>1-Math.pow(1-x,3);
+function mix(A,B,k){return{hx:A.hx+(B.hx-A.hx)*k,hy:A.hy+(B.hy-A.hy)*k,a:A.a+(B.a-A.a)*k,lean:A.lean+(B.lean-A.lean)*k};}
+function targetPose(f){
+  const c=G.chain;
+  if(f.state==='locked'&&c){
+    const lean=(q,dl,dx)=>({hx:q.hx+dx,hy:q.hy,a:q.a,lean:q.lean+dl});
+    if(f===c.a){ // 攻め:前のめり
+      if(c.phase==='spInput'){const q=lean(P.charge,0,0);q.hx+=Math.sin(G.t*60)*1.5;return q;}
+      if(c.phase==='spExec')return lean(mix(strikeP(c.lastType),windP(c.sp[c.spi]),ease(Math.min(1,c.t/c.dur*2.2))),.12,2);
+      if(c.phase==='swing')return lean(mix(strikeP(c.lastType),windP(c.type),ease(Math.min(1,c.t/c.dur*1.7))),.12,2);
+      return lean(strikeP(c.lastType),.14,3);
+    }
+    return lean(guardP(f.gpose),-.16-Math.min(.12,c.count*.015),-5); // 受け:のけぞり
+  }
+  switch(f.state){
+    case 'startup':return mix(P.mid,windP(f.type),ease(Math.min(1,f.st/f.dur*1.4)));
+    case 'strike':case 'recover':return strikeP(f.type);
+    case 'guard':return guardP(f.resp);
+    case 'hitstun':return P.hurt;
+    case 'stun':return P.stun;
+    case 'cast':return f.st<.2?P.vUp:P.vDown;
+    case 'palm':return P.palmPull;
+    case 'palmHit':return P.palmOut;
+    case 'pass':return P.hOut;
+  }
+  return P.mid;
+}
+function updatePose(f,dt){
+  const tg=targetPose(f);
+  const fast=f.state==='strike'||(G.chain&&G.chain.a===f&&G.chain.phase==='follow')||f.state==='recover';
+  const k=Math.min(1,dt*(fast?34:18));
+  for(const key in tg)f.pose[key]+=(tg[key]-f.pose[key])*k;
+}
+
+// ====== 背景 ======
+let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+function ridge(n,x0,x1,a,b){const r=[];for(let i=0;i<=n;i++)r.push([x0+(x1-x0)*i/n,-(a+rnd()*(b-a))]);return r;}
+const FAR=ridge(34,0,2400,110,210),NEAR=ridge(60,0,1800,35,100);
+FAR[FAR.length-1][1]=FAR[0][1];NEAR[NEAR.length-1][1]=NEAR[0][1]; // 端をつないで繰り返す
+const GRASS=[];for(let i=0;i<70;i++)GRASS.push({x:rnd()*1800,h:14+rnd()*30,ph:rnd()*6,front:rnd()<.25});
+const PINES=[];
+const LEAVES=[];for(let i=0;i<26;i++)LEAVES.push({x:rnd()*1400-200,y:-rnd()*300,r:rnd()*6,vy:10+rnd()*20,s:2+rnd()*2.5,ph:rnd()*6});
+
+// ====== メインループ ======
+let last=performance.now();
+function update(dt){
+  G.t+=dt;G.pt+=dt;
+  G.shake=Math.max(0,G.shake-dt*2.2);G.flash=Math.max(0,G.flash-dt*2);
+  let gdt=dt;
+  if(G.cut){gdt*=.22;if((G.cut.t+=dt)>G.cut.dur)G.cut=null;}
+  if(G.resetT>0){G.resetT-=dt;if(G.resetT<=0&&G.phase==='fight')shikiri();}
+  if(G.phase==='intro'&&G.pt>1.8){G.phase='fight';sfx.tick();}
+  if(G.phase==='ko'){
+    gdt=dt*.35;
+    if(G.pt>2.6){
+      if(F.some(f=>f.wins>=C.winsNeeded))showOver();
+      else{G.round++;resetRound();}
+    }
+  }
+  if(G.phase==='fight'||G.phase==='ko'){
+    if(G.chain)updateChain(gdt);else F.forEach(f=>updateF(f,gdt));
+    updateWaves(gdt);
+    separate();
+    F.forEach(f=>{
+      if(f.flame>0){ // 龍炎舞:炎をまとい身を焦がす
+        f.flame=Math.max(0,f.flame-gdt);
+        if(G.phase==='fight')f.hp=Math.max(1,f.hp-C.flameBurn*gdt);
+        for(let i=0;i<2;i++)if(Math.random()<gdt*30){const L=15+Math.random()*60,q=f.pose;
+          G.parts.push({x:f.x+f.dir*(q.hx+Math.cos(q.a)*L),y:q.hy+Math.sin(q.a)*L,vx:(Math.random()-.5)*50,vy:-50-Math.random()*70,life:.3+Math.random()*.3,t:0,col:Math.random()<.5?'#ff7a1a':'#ffc040',kind:'fire'});}
+      }
+      if(f.meteor>0)f.meteor=Math.max(0,f.meteor-gdt);
+      if(f.zanei>0)f.zanei=Math.max(0,f.zanei-gdt);
+      if(f.tengan>0)f.tengan=Math.max(0,f.tengan-gdt);
+      if(f.meteor>0&&Math.random()<gdt*14)G.parts.push({x:f.x+(Math.random()-.5)*40,y:-20-Math.random()*100,vx:0,vy:-20,life:.5,t:0,col:'#cfe8ff',kind:'fire'});
+    });
+  }
+  F.forEach(f=>{updatePose(f,gdt);f.staG+=(f.sta-f.staG)*Math.min(1,dt*4);f.ghost+=(f.hp-f.ghost)*Math.min(1,dt*(f.ghost-f.hp>0&&f.state!=='hitstun'?3:0.4));});
+  G.cam+=((F[0].x+F[1].x)/2-G.cam)*Math.min(1,dt*5);
+  G.fx=G.fx.filter(e=>(e.t+=dt)<e.dur);
+  G.parts=G.parts.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind!=='fire')p.vy+=600*dt;p.vx*=.97;return p.t<p.life;});
+  G.pops=G.pops.filter(p=>(p.t+=dt)<p.dur);
+  if(G.banner&&(G.banner.t+=dt)>G.banner.dur)G.banner=null;
+  LEAVES.forEach(l=>{l.x-=(45+Math.sin(G.t+l.ph)*20)*dt;l.y+=l.vy*dt;l.r+=dt*3;
+    if(l.x<G.cam-700)l.x+=1400;if(l.x>G.cam+700)l.x-=1400;if(l.y>5){l.y=-300;}});
+  updateUI();
+}
+function updateUI(){
+  F.forEach((f,p)=>{ // 追撃ボタン(画面中央)
+    const c=G.chain,on=!!(G.phase==='fight'&&c&&c.phase==='follow'&&c.a===f);
+    AK[p].classList.toggle('k3',!!G.kesa);
+    SPB[p].forEach(b=>{
+      const ok=f.sta>=C.heavyCost;
+      b.classList.toggle('ready',G.phase==='fight'&&!G.chain&&ok);b.classList.toggle('used',!ok);
+      const t=ok?'気力60':'気力不足';
+      if(b._t!==t){b._t=t;b.innerHTML=`重撃<small>${t}</small>`;}
+    });
+    // 最初の一太刀(立ち回りの斬り)にだけ、受けに適したボタンを光らせる
+    const o=F[1-p],threat=G.phase==='fight'&&!G.chain&&o.state==='startup'&&(o.type==='v'||o.type==='h')&&f.state==='idle'&&Math.abs(o.x-f.x)<=AT(o,o.type).reach+70&&!(o.zanei>0);
+    let want=threat?counterOf(o.type):null;
+    const cc=G.chain;
+    if(f.tengan>0&&cc&&cc.d===f&&cc.phase==='swing')want=counterOf(cc.type); // 天眼:連撃中も受けが見える
+    ATB[p].v.classList.toggle('hint',want==='v');ATB[p].h.classList.toggle('hint',want==='h');
+    STB[p].forEach(b=>b.style.setProperty('--cd',((b.dataset.a==='sf'?f.cdF:f.cdB)/C.stepCD).toFixed(3)));
+  });
+  F.forEach((f,p)=>{
+    const b=SKB[p],sk=SKILLS[f.skill];
+    const name=sk?sk.name:'剣技なし';
+    const sub=f.flame>0?`燃焼中 残り${Math.ceil(f.flame)}秒`:f.meteor>0?`大跳躍し放題 残り${Math.ceil(f.meteor)}秒`:f.zanei>0?`太刀筋隠し 残り${Math.ceil(f.zanei)}秒`:f.tengan>0?`見通し中 残り${Math.ceil(f.tengan)}秒`:f.shield?'一撃を防ぐ構え':f.skillUsed?'使用済(次の戦で回復)':(sk?sk.short:'');
+    if(b._t!==name+sub){b._t=name+sub;b.innerHTML=`<b>${name}</b><small>${sub}</small>`;}
+    const act=f.flame>0||f.meteor>0||f.zanei>0||f.tengan>0||f.shield;
+    b.classList.toggle('used',!sk||!!(f.skillUsed&&!act));
+    b.classList.toggle('active',!!act);
+  });
+}
+
+function fitCanvas(){
+  const dpr=Math.min(2.5,window.devicePixelRatio||1);
+  CV.forEach(c=>{const w=c.clientWidth,h=c.clientHeight;c._w=w;c._h=h;c._d=dpr;c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);});
+}
+addEventListener('resize',fitCanvas);
+
+function render(){
+  for(let v=0;v<2;v++)renderView(v);
+}
+function renderView(v){
+  const cv=CV[v],ctx=cv.getContext('2d'),w=cv._w,h=cv._h,dpr=cv._d;
+  if(!w||!h)return;
+  const dist=Math.abs(F[1].x-F[0].x);
+  const viewW=Math.max(560,Math.min(1800,dist+440));
+  const sc=Math.min(w/viewW,h/265);
+  const gy=h*.86;
+  const flip=F[v].dir; // 常に「自分が左・相手が右」に見せる(立ち位置が入れ替わっても同じ)
+  const shx=(Math.random()-.5)*G.shake*16,shy=(Math.random()-.5)*G.shake*10;
+  const cam=G.cam;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  // 空
+  const g=ctx.createLinearGradient(0,0,0,gy);
+  g.addColorStop(0,'#1a0710');g.addColorStop(.45,'#7d1f1a');g.addColorStop(.82,'#e0612a');g.addColorStop(1,'#f8aa52');
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  // ワールド座標へ
+  ctx.setTransform(dpr*sc*flip,0,0,dpr*sc,dpr*(w/2+shx),dpr*(gy+shy));
+  ctx.translate(-cam,0);
+  layer(ctx,cam,0,()=>{ctx.translate(-400,40); // 月(常に同じ位置)
+    const r=ctx.createRadialGradient(560,-190,10,560,-190,160);
+    r.addColorStop(0,'rgba(255,230,180,.9)');r.addColorStop(.4,'rgba(255,200,130,.35)');r.addColorStop(1,'rgba(255,160,80,0)');
+    ctx.fillStyle=r;ctx.beginPath();ctx.arc(560,-190,160,0,7);ctx.fill();
+    ctx.fillStyle='#ffe2b0';ctx.beginPath();ctx.arc(560,-190,62,0,7);ctx.fill();
+  });
+  layer(ctx,cam,.18,()=>{ctx.fillStyle='rgba(110,30,22,.85)';tile(ctx,cam*.18,2400,()=>poly(ctx,FAR,true));});
+  layer(ctx,cam,.45,()=>{ctx.fillStyle='#3a1210';tile(ctx,cam*.45,1800,()=>poly(ctx,NEAR,false));});
+  // 地面
+  ctx.fillStyle='#070404';ctx.fillRect(cam-3000,0,6000,600);
+  // 画面端の竹垣(壁)
+  // 松
+  PINES.forEach(p=>{if(p.h)pine(ctx,p.x,p.h);});
+  // 草(奥)
+  ctx.strokeStyle='#070404';ctx.lineCap='round';
+  tile(ctx,cam,1800,()=>GRASS.forEach(gr=>{if(!gr.front)grass(ctx,gr);}));
+  // 侍
+  F.forEach(f=>drawSamurai(ctx,f));
+  // 太刀筋の予兆(縦=縦長の三日月 / 横=横長の三日月)
+  telegraphs().forEach(([f,t,k])=>{
+    if(f.zanei>0&&f.id!==v)return; // 残影:相手には太刀筋が見えない
+    const e=ease(Math.min(1,k)),z=CHR(f).size;
+    ctx.save();ctx.translate(f.x,0);ctx.scale(f.dir*z,z);
+    placeCres(ctx,t);
+    const col=t==='x'?'230,30,20':t==='v'?'255,120,70':t==='k'?'200,150,255':'255,210,90';
+    ctx.globalAlpha=.12+.55*e+Math.sin(G.t*40)*.05;
+    ctx.shadowColor=`rgb(${col})`;ctx.shadowBlur=14;
+    if(t==='h'){ctx.lineWidth=1;ctx.strokeStyle=`rgba(${col},.6)`;ctx.beginPath();ctx.ellipse(0,0,75*.6,75*.24,0,0,7);ctx.stroke();}
+    ctx.fillStyle=`rgba(${col},.6)`;crescentPath(ctx,t,t==='h'?75:t==='x'?105:70);ctx.fill();
+    ctx.lineWidth=1.5;ctx.strokeStyle=`rgba(255,245,220,.8)`;ctx.stroke();
+    ctx.restore();
+  });
+  // 斬撃
+  G.fx.forEach(e=>{
+    const k=e.t/e.dur,al=1-k;
+    ctx.save();ctx.translate(e.x,0);ctx.scale(e.dir*(e.z||1),e.z||1);placeCres(ctx,e.type);
+    ctx.globalAlpha=al;ctx.fillStyle='#fff4e0';ctx.shadowColor='#fff';ctx.shadowBlur=10;
+    const sc2=1+k*.15;ctx.scale(sc2,sc2);crescentPath(ctx,e.type,e.type==='h'?78:e.type==='x'?115:72);ctx.fill();
+    ctx.restore();
+  });
+  // 波動
+  G.waves.forEach(w=>{
+    ctx.save();ctx.translate(w.x,0);ctx.scale(w.dir,1);
+    for(let i=3;i>=0;i--){
+      ctx.save();ctx.translate(-i*22,-80);ctx.globalAlpha=(i?.18:.9)*(1-i*.15);
+      ctx.fillStyle=i?'#9fd0ff':'#eef8ff';ctx.shadowColor='#7fc0ff';ctx.shadowBlur=16;
+      const k=1+Math.sin(w.t*30)*.05;ctx.scale(k,k);crescentPath(ctx,'v',58);ctx.fill();ctx.restore();
+    }
+    ctx.restore();
+  });
+  // 火花・炎
+  G.parts.forEach(p=>{const a=1-p.t/p.life;ctx.globalAlpha=a;
+    if(p.kind==='ring'){ctx.strokeStyle=p.col;ctx.lineWidth=4*a;ctx.beginPath();ctx.arc(p.x,p.y,10+60*(1-a),0,7);ctx.stroke();return;}
+    if(p.kind==='fire'){ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,1+4*a,0,7);ctx.fill();return;}
+    ctx.strokeStyle=p.col;ctx.lineWidth=2.2;
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.03,p.y-p.vy*.03);ctx.stroke();});
+  ctx.globalAlpha=1;
+  // 草(手前)・葉
+  ctx.strokeStyle='#050303';tile(ctx,cam,1800,()=>GRASS.forEach(gr=>{if(gr.front)grass(ctx,gr);}));
+  ctx.fillStyle='rgba(20,6,4,.85)';
+  LEAVES.forEach(l=>{ctx.save();ctx.translate(l.x,l.y+Math.sin(G.t*2+l.ph)*8);ctx.rotate(l.r);ctx.beginPath();ctx.ellipse(0,0,l.s*1.8,l.s*.8,0,0,7);ctx.fill();ctx.restore();});
+  // ---- HUD(画面座標・反転なし) ----
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const SX=x=>w/2+shx+flip*(x-cam)*sc, SY=y=>gy+shy+y*sc;
+  if(G.flash>0){ctx.fillStyle=`rgba(255,235,210,${G.flash*.5})`;ctx.fillRect(0,0,w,h);}
+  drawHUD(ctx,w,h,v,SX,SY,sc);
+}
+function placeCres(ctx,t){if(t==='x')ctx.translate(-14,-82);else if(t==='v')ctx.translate(-8,-80);else if(t==='k'){ctx.translate(0,-82);ctx.rotate(.65);}else ctx.translate(28,-74);}
+function telegraphs(){
+  const r=[],c=G.chain;
+  F.forEach(f=>{if(f.state==='startup')r.push([f,f.type,f.st/f.dur*1.3]);});
+  if(c&&c.phase==='swing')r.push([c.a,c.type,c.t/c.dur*1.6]);
+  if(c&&c.phase==='spExec')r.push([c.a,c.sp[c.spi],c.t/c.dur*2]);
+  return r;
+}
+function layer(ctx,cam,pf,fn){ctx.save();ctx.translate(cam*(1-pf),0);fn();ctx.restore();}
+function poly(ctx,pts,smooth){
+  ctx.beginPath();ctx.moveTo(pts[0][0],0);ctx.lineTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++){
+    if(smooth){const m=[(pts[i-1][0]+pts[i][0])/2,(pts[i-1][1]+pts[i][1])/2];ctx.quadraticCurveTo(pts[i-1][0],pts[i-1][1],m[0],m[1]);}
+    else ctx.lineTo(pts[i][0],pts[i][1]);
+  }
+  if(smooth)ctx.lineTo(pts[pts.length-1][0],pts[pts.length-1][1]);
+  ctx.lineTo(pts[pts.length-1][0]+1,0);ctx.closePath();ctx.fill();
+}
+function pine(ctx,x,h){
+  ctx.fillStyle='#070404';ctx.strokeStyle='#070404';ctx.lineWidth=7;
+  ctx.beginPath();ctx.moveTo(x,0);ctx.quadraticCurveTo(x+18,-h*.5,x-6,-h);ctx.stroke();
+  [[.55,60],[.75,48],[.95,38]].forEach(([k,r],i)=>{const yy=-h*k;const xx=x+(i%2?-14:12);
+    ctx.beginPath();ctx.ellipse(xx,yy,r,10,i%2?.08:-.08,0,7);ctx.fill();});
+}
+function wall(ctx,side,edge){
+  // side:-1=左の壁(edgeより左側), 1=右の壁(edgeより右側)
+  const w=70,x0=side<0?edge-w:edge;
+  ctx.fillStyle='rgba(5,3,3,.72)';
+  ctx.fillRect(side<0?x0-3000:x0+w,-600,3000,1200); // 壁の向こうは薄暗く
+  ctx.fillStyle='#050303';
+  for(let i=0;i<10;i++){ // 竹の柱
+    const x=x0+i*7,h=150+((i*37)%23)+(i%3===0?18:0);
+    ctx.fillRect(x,-h,5.5,h);
+    ctx.beginPath();ctx.moveTo(x,-h);ctx.lineTo(x+2.75,-h-6);ctx.lineTo(x+5.5,-h);ctx.fill(); // 斜めの切り口
+  }
+  ctx.fillRect(x0-6,-58,w+12,7);ctx.fillRect(x0-6,-118,w+12,7); // 横木
+  ctx.fillRect(side<0?x0+w-6:x0,-195,10,195); // 親柱
+  ctx.lineWidth=2;ctx.strokeStyle='#050303';
+  for(let k=0;k<2;k++){const y=k?-114:-54;ctx.beginPath();ctx.moveTo(x0-6,y);ctx.lineTo(x0+w+6,y+6);ctx.stroke();} // 縄
+}
+function tile(ctx,center,period,fn){ // 背景を左右に無限に繰り返す
+  const k0=Math.floor((center-1400)/period),k1=Math.floor((center+1400)/period);
+  for(let k=k0;k<=k1;k++){ctx.save();ctx.translate(k*period,0);fn();ctx.restore();}
+}
+function grass(ctx,gr){
+  const sw=Math.sin(G.t*1.8+gr.ph)*5;ctx.lineWidth=1.6;
+  for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(gr.x+i*3,0);ctx.quadraticCurveTo(gr.x+i*4,-gr.h*.6,gr.x+i*7+sw-4,-gr.h-(i===0?6:0));ctx.stroke();}
+}
+function drawSamurai(ctx,f){
+  const p=f.pose,t=G.t;
+  const moving=!!f.moving;
+  const sw=moving?Math.sin(f.walk)*11:(f.state==='step'?9*Math.sign(f.sv):0);
+  const bob=moving?-Math.abs(Math.sin(f.walk))*2.5:Math.sin(t*2.2+f.id*2)*1.2;
+  ctx.save();ctx.translate(f.x,0);ctx.scale(f.dir,1);if(f.ch==='oni')ctx.scale(1.18,1.18);ctx.rotate(p.lean*.6);
+  const col=f.flash>0?`rgb(${(40+f.flash*120)|0},6,4)`:'#060303';
+  ctx.fillStyle=col;ctx.strokeStyle=col;ctx.lineCap='round';ctx.lineJoin='round';
+  // 風になびく襟巻き
+  const sx0=-4,sy0=-90+bob,top=[],bot=[],N=10;
+  for(let i=1;i<=N;i++){const k=i/N,x=sx0-i*8.5,wave=Math.sin(t*7-i*.8)*(1+i*.9),y=sy0-2+i*1.3+wave,wd=4.5*(1-k)+1;top.push([x,y-wd]);bot.push([x,y+wd]);}
+  ctx.beginPath();ctx.moveTo(sx0,sy0-3);top.forEach(q=>ctx.lineTo(q[0],q[1]));for(let i=bot.length-1;i>=0;i--)ctx.lineTo(bot[i][0],bot[i][1]);ctx.lineTo(sx0,sy0+4);ctx.closePath();ctx.fill();
+  // 脚
+  ctx.lineWidth=7;
+  const leg=(a,b,c,d,e,g)=>{ctx.beginPath();ctx.moveTo(a,b);ctx.quadraticCurveTo(c,d,e,g);ctx.stroke();};
+  leg(4,-50+bob,12+sw*.5,-26,17+sw,0);
+  leg(-4,-50+bob,-9-sw*.5,-25,-19-sw,0);
+  const nin=f.ch==='sasuke',sora=f.ch==='sora',oni=f.ch==='oni',kohaku=f.ch==='kohaku';
+  // 袴(忍びは細身の装束)
+  if(nin){ctx.beginPath();ctx.moveTo(-9,-58+bob);ctx.lineTo(10,-58+bob);ctx.lineTo(9,-42);ctx.lineTo(-10,-42);ctx.closePath();ctx.fill();}
+  else{ctx.beginPath();ctx.moveTo(-10,-58+bob);ctx.lineTo(11,-58+bob);ctx.lineTo(20+sw*.45,-18);ctx.lineTo(1,-24);ctx.lineTo(-22-sw*.45,-18);ctx.closePath();ctx.fill();}
+  // 帯の垂れ
+  ctx.beginPath();ctx.moveTo(-9,-60+bob);ctx.quadraticCurveTo(-18,-52,-24+Math.sin(t*6)*3,-44);ctx.lineTo(-20,-44);ctx.quadraticCurveTo(-14,-52,-7,-56+bob);ctx.fill();
+  // 胴
+  ctx.beginPath();ctx.moveTo(-12,-56+bob);ctx.lineTo(-10,-90+bob);ctx.quadraticCurveTo(0,-95+bob,10,-90+bob);ctx.lineTo(13,-56+bob);ctx.closePath();ctx.fill();
+  // 頭と笠(忍びは頭巾と結び紐)
+  ctx.beginPath();ctx.arc(2,-100+bob,8,0,7);ctx.fill();
+  if(sora){ // 長い髪を高く結い、風になびかせる
+    const hp=[];for(let i=0;i<=8;i++)hp.push([-6-i*6,-104+bob+i*3+Math.sin(t*6-i*.7)*(1+i*.8)]);
+    ctx.beginPath();ctx.moveTo(-4,-108+bob);hp.forEach(q=>ctx.lineTo(q[0],q[1]-3*(1-(-q[0]-6)/50)));for(let i=8;i>=0;i--)ctx.lineTo(hp[i][0],hp[i][1]+3*(1-(-hp[i][0]-6)/50));ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.arc(-3,-107+bob,4,0,7);ctx.fill();
+  }else if(oni){ // 二本角の鬼面
+    ctx.beginPath();ctx.moveTo(-4,-106+bob);ctx.quadraticCurveTo(-10,-118+bob,-14,-124+bob);ctx.lineTo(-1,-108+bob);ctx.fill();
+    ctx.beginPath();ctx.moveTo(4,-107+bob);ctx.quadraticCurveTo(6,-120+bob,4,-128+bob);ctx.lineTo(9,-106+bob);ctx.fill();
+    ctx.beginPath();ctx.moveTo(-10,-100+bob);for(let i=0;i<6;i++)ctx.lineTo(-12-i*4,-96+bob+(i%2?6:-2)+Math.sin(t*5+i)*2);ctx.lineTo(-6,-90+bob);ctx.fill();
+  }else if(kohaku){ // 狐面:とがった耳と長い鼻先
+    ctx.beginPath();ctx.moveTo(-5,-104+bob);ctx.lineTo(-3,-118+bob);ctx.lineTo(3,-106+bob);ctx.fill();
+    ctx.beginPath();ctx.moveTo(3,-105+bob);ctx.lineTo(7,-118+bob);ctx.lineTo(10,-103+bob);ctx.fill();
+    ctx.beginPath();ctx.moveTo(8,-102+bob);ctx.lineTo(17,-98+bob);ctx.lineTo(8,-95+bob);ctx.fill();
+  }else if(nin){
+    ctx.beginPath();ctx.moveTo(-6,-104+bob);ctx.quadraticCurveTo(-22,-104+Math.sin(t*8)*3,-34,-98+Math.sin(t*8+1)*5);ctx.quadraticCurveTo(-20,-100,-6,-99+bob);ctx.fill();
+    ctx.beginPath();ctx.moveTo(-6,-102+bob);ctx.quadraticCurveTo(-18,-96+Math.sin(t*7)*3,-30,-90+Math.sin(t*7+1)*5);ctx.quadraticCurveTo(-18,-95,-6,-98+bob);ctx.fill();
+  }else{
+  ctx.beginPath();ctx.moveTo(-26,-101+bob);ctx.quadraticCurveTo(0,-129+bob,31,-101+bob);ctx.quadraticCurveTo(3,-106+bob,-26,-101+bob);ctx.fill();
+  // 笠の紐
+  ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,-100+bob);ctx.quadraticCurveTo(-14,-80+bob,-20+Math.sin(t*5)*3,-74+bob);ctx.stroke();
+  }
+  // 腕
+  const hx=p.hx,hy=p.hy+bob;
+  ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(6,-86+bob);ctx.quadraticCurveTo((6+hx)/2+4,(-86+hy)/2+6,hx,hy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-5,-86+bob);ctx.quadraticCurveTo((hx-5)/2,(-86+hy)/2+8,hx-3,hy+2);ctx.stroke();
+  if(f.state==='palmHit'||f.state==='palm'){ // 張り手の腕
+    const ex=f.state==='palmHit'?42:-2;
+    ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(4,-86+bob);ctx.lineTo(ex,-84+bob);ctx.stroke();
+    ctx.beginPath();ctx.ellipse(ex+4,-85+bob,5,8,0,0,7);ctx.fill();
+  }
+  // 刀
+  ctx.save();ctx.translate(hx,hy);ctx.rotate(p.a);
+  if(sora){ // 薙刀:長い柄と反った刃
+    ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(80,0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(78,-2.5);ctx.quadraticCurveTo(100,-6,116,-12);ctx.quadraticCurveTo(102,0,78,2.5);ctx.closePath();ctx.fill();
+  }else if(oni){ // 大太刀:幅広く長い刃
+    ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(3,0);ctx.stroke();
+    ctx.fillRect(2,-6,4,12);
+    ctx.beginPath();ctx.moveTo(6,-3);ctx.quadraticCurveTo(50,-7,90,-5);ctx.lineTo(88,1);ctx.quadraticCurveTo(50,2,6,3);ctx.closePath();ctx.fill();
+  }else if(nin){ // クナイ:輪のついた短い刃
+    ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(-9,0,3.5,0,7);ctx.stroke();
+    ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(3,0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(3,-4);ctx.lineTo(28,0);ctx.lineTo(3,4);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(255,215,170,.45)';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(5,0);ctx.lineTo(26,0);ctx.stroke();
+  }else{
+  ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-15,0);ctx.lineTo(3,0);ctx.stroke();
+  ctx.fillRect(2,-4.5,3,9);
+  ctx.beginPath();ctx.moveTo(5,-1.6);ctx.quadraticCurveTo(40,-4.5,76,-3.2);ctx.lineTo(5,1.6);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,215,170,.4)';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(8,1.1);ctx.quadraticCurveTo(40,-1.6,74,-2.8);ctx.stroke();
+  }
+  ctx.restore();
+  ctx.restore();
+  if(f.state==='stun'){
+    ctx.fillStyle='#ffe2b0';
+    for(let i=0;i<3;i++){const a=t*6+i*2.1;ctx.beginPath();ctx.arc(f.x+Math.cos(a)*18,-128+Math.sin(a)*5,3.2,0,7);ctx.fill();}
+  }
+}
+const FONT='"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif';
+function txt(ctx,s,x,y,size,col,align,stroke){
+  ctx.font=`700 ${size}px ${FONT}`;ctx.textAlign=align||'center';ctx.textBaseline='middle';
+  if(stroke!==false){ctx.lineWidth=Math.max(3,size/6);ctx.strokeStyle='rgba(10,3,2,.85)';ctx.strokeText(s,x,y);}
+  ctx.fillStyle=col;ctx.fillText(s,x,y);
+}
+function drawHUD(ctx,w,h,v,SX,SY,sc){
+  const me=F[v],op=F[1-v];
+  const bw=Math.min(170,w*.4),bh=9,y0=12;
+  const bar=(f,x,right)=>{
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x-2,y0-2,bw+4,bh+4);
+    const k=f.hp/maxHp(f),kg=f.ghost/maxHp(f);
+    ctx.fillStyle='#f3e2c8';
+    const gx=right?x+bw*(1-kg):x;ctx.fillRect(gx,y0,bw*kg,bh);
+    ctx.fillStyle=k>.3?'#c8361e':'#ff5a2a';
+    const fx=right?x+bw*(1-k):x;ctx.fillRect(fx,y0,bw*k,bh);
+    // スタミナ
+    const ks=f.staG/C.staMax,sy=y0+bh+3,low=f.sta<C.staGuard*3;
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x-2,sy,bw+4,7);
+    ctx.fillStyle=low&&Math.sin(G.t*14)>0?'#ff8a3a':'#e8c35a';
+    ctx.fillRect(right?x+bw*(1-ks):x,sy+1.5,bw*ks,4);
+    ctx.fillStyle='rgba(0,0,0,.55)';for(let i=1;i<10;i++)ctx.fillRect(x+bw*i/10-.5,sy+1.5,1,4);
+    for(let i=0;i<C.winsNeeded;i++){
+      const cx=right?x+bw-6-i*14:x+6+i*14;ctx.beginPath();ctx.arc(cx,y0+bh+20,4.5,0,7);
+      ctx.fillStyle=i<f.wins?'#f6c48a':'rgba(0,0,0,.45)';ctx.fill();ctx.strokeStyle='#f6c48a';ctx.lineWidth=1;ctx.stroke();}
+    ctx.font=`600 11px ${FONT}`;ctx.textBaseline='middle';ctx.textAlign=right?'right':'left';ctx.fillStyle='#f3e2c8';
+    ctx.fillText(f===me?'自分':'相手',right?x+bw-C.winsNeeded*14-4:x+C.winsNeeded*14+2,y0+bh+20);
+  };
+  bar(me,12,false);bar(op,w-12-bw,true);
+
+
+  // 斬り合い表示
+  const c=G.chain;
+  if(c){
+    const atk=c.a===me,pulse=.5+.5*Math.sin(G.t*(atk?8:11+c.count));
+    if(atk){ // 攻勢:金色の気迫と、相手へ流れる集中線
+      const r=ctx.createRadialGradient(w*.35,h*.6,Math.min(w,h)*.2,w*.35,h*.6,Math.max(w,h)*.75);
+      r.addColorStop(0,'rgba(255,180,60,0)');r.addColorStop(1,`rgba(255,170,50,${.22+.1*pulse})`);
+      ctx.fillStyle=r;ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle='rgba(255,236,200,.45)';ctx.lineWidth=1.5;
+      for(let i=0;i<12;i++){const yy=(i*53+17)%(h*.9)+h*.05,xx=((G.t*(700+i*40)+i*157)%(w*1.5))-w*.3;
+        ctx.beginPath();ctx.moveTo(xx,yy);ctx.lineTo(xx+40+i%3*20,yy);ctx.stroke();}
+    }else{ // 防戦:赤く脈打つ縁取り
+      const r=ctx.createRadialGradient(w/2,h*.55,Math.min(w,h)*.22,w/2,h*.55,Math.max(w,h)*.7);
+      r.addColorStop(0,'rgba(0,0,0,0)');r.addColorStop(1,`rgba(140,0,0,${.4+.25*pulse})`);
+      ctx.fillStyle=r;ctx.fillRect(0,0,w,h);
+    }
+    txt(ctx,`${c.count}合`,w/2,y0+8,20,'#f6c48a');
+    txt(ctx,`蓄積 ${c.accum}`,w/2,y0+28,12,'#f3e2c8');
+    let msg,col;
+    if(c.phase==='spInput'||c.phase==='spExec'){
+      ctx.fillStyle=`rgba(40,0,0,${.25+.1*pulse})`;ctx.fillRect(0,0,w,h);
+      if(c.phase==='spInput'){msg=atk?'太刀筋を刻め!':'見極めろ…';col=atk?'#ffd27a':'#ffb0a0';}
+      else{msg=atk?'斬り刻め!':'受けきれ!';col=atk?'#ffd27a':'#ff7a5a';}
+    }
+    else if(atk){msg=c.phase==='follow'?'攻め立てろ!':'押し込め!';col='#ffd27a';}
+    else{msg=c.phase==='swing'?'受けろ!':'';col='#ff7a5a';}
+    const my=atk?Math.max(y0+60,h*.25):y0+52;
+    const k=Math.max(0,1-c.t/c.dur);
+    if(!atk||c.phase==='follow'){ // ゲージは画面の下端へ:相手の太刀筋を隠さないよう、ゲージと文字は画面の下端へ
+      ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,h-6,w,6);
+      ctx.fillStyle=col;ctx.fillRect(w/2-w/2*k,h-5,w*k,4);
+    }
+    if(atk&&c.phase==='follow'&&!G.cut)txt(ctx,'追撃しろ!',w/2,y0+52,18,'#ffd27a');
+    if(!(atk&&c.phase==='follow')){
+    if(msg)txt(ctx,msg,w/2,my,atk?26:20,col);
+    if(atk){const bwid=w*.42;
+    ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(w/2-bwid/2-2,my+17,bwid+4,8);
+    ctx.fillStyle=col;ctx.fillRect(w/2-bwid/2,my+19,bwid*k,4);}
+    const n=Math.ceil(c.a.sta/C.staGuard);
+    if(c.sp){ // 必殺の太刀筋
+      for(let i=0;i<C.sp.n;i++){
+        const x=w/2+(i-2)*36,y=my+46,ty=c.sp[i];
+        ctx.save();ctx.translate(x,y);
+        ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(-16,-16,32,32);
+        if(ty){
+          const done=c.phase==='spExec'&&i<c.spi,cur=c.phase==='spExec'&&i===c.spi;
+          ctx.globalAlpha=done?.3:1;
+          if(cur){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(-17,-17,34,34);}
+          ctx.fillStyle=ty==='v'?'#ffb08a':'#ffe08a';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=cur?10:0;
+          if(ty==='v'){ctx.translate(-6,0);crescentPath(ctx,'v',13);}else{crescentPath(ctx,'h',24);}
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }else
+    txt(ctx,atk?`気力 残り${n}太刀`:`しのげ! 相手の息切れまで あと${n}太刀`,w/2,atk?my+38:h-18,atk?12:11,atk?'#ffe6b8':'#ffd0c0');
+    }
+  }
+  // ポップ文字
+  G.pops.forEach(p=>{const a=1-p.t/p.dur;ctx.globalAlpha=Math.min(1,a*2);txt(ctx,p.text,SX(p.x),SY(p.y)-p.t*30,16,p.col);ctx.globalAlpha=1;});
+  // バナー
+  let bt=null,bs=null,bc='#fff1d8';
+  if(G.phase==='intro'){bt=G.pt<1.0?`第${KAN[G.round]}戦`:'いざ';}
+  else if(G.phase==='fight'&&G.pt<.7){bt='勝負!';bc='#ffb070';}
+  else if(G.phase==='ko'){bt='一本!';if(G.pt>.9){const won=me.hp>0;bs=won?'勝ち':'負け';}}
+  else if(G.banner){bt=G.banner.text;bs=G.banner.sub;const a=1-G.banner.t/G.banner.dur;ctx.globalAlpha=Math.min(1,a*3);}
+  if(G.cut){
+    const k=G.cut.t/G.cut.dur,atkV=F[v].id===G.cut.a;
+    const al=k<.85?1:(1-k)/.15,y=h*.62,bh=Math.min(58,h*.2);
+    ctx.globalAlpha=al;
+    ctx.fillStyle='rgba(8,3,2,.82)';ctx.fillRect(0,y-bh/2,w,bh);
+    ctx.fillStyle=atkV?'#ffd27a':'#ff6a4a';ctx.fillRect(0,y-bh/2,w,2);ctx.fillRect(0,y+bh/2-2,w,2);
+    const sx=w/2+(1-ease(Math.min(1,k*5)))*w*(atkV?1:-1);
+    txt(ctx,atkV?'連撃を浴びせよ!':'防御し続けろ!',sx,y+1,Math.min(30,w*.075),atkV?'#ffe2a0':'#ffb0a0');
+    ctx.globalAlpha=1;
+  }
+  if(bt){txt(ctx,bt,w/2,h*.36,G.banner&&G.phase==='fight'?22:34,bc);if(bs)txt(ctx,bs,w/2,h*.36+32,20,'#ff8a6a');}
+  ctx.globalAlpha=1;
+}
+
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  (typeof netStep==='function'?netStep:update)(dt);render();
+  requestAnimationFrame(loop);
+}
+fitCanvas();showTitle();
+requestAnimationFrame(loop);
+</script>
+<script>
+// ====== オンライン対戦 (ホストが計算し、状態をゲストへ送る) ======
+let NET=null,ME=0;
+const PREFIX='fuuraizan-hatashi-';
+// --- 入力の振り分け ---
+const inputRaw=input;
+input=function(p,a,down){
+  if(!NET)return inputRaw(p,a,down);
+  if(p!==ME)return;
+  if(NET.role==='host')inputRaw(0,a,down);else NET.send({i:[a,down?1:0]});
+};
+// オンライン時のキーボード: どちらのキーでも自分の侍を動かす(自分は常に左・相手が右)
+const NKEYS={a:'b',d:'f',q:'sk',j:'v',k:'h',l:'p',ArrowLeft:'b',ArrowRight:'f',ArrowUp:'sk',',':'v','.':'h','/':'p'};
+addEventListener('keydown',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();e.preventDefault();if(!e.repeat){initAudio();input(ME,a,true);}},true);
+addEventListener('keyup',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();input(ME,a,false);},true);
+// --- 使い手・剣技の選択 ---
+function netPick(p,k,v){if(NET&&NET.role==='guest')NET.send({pk:[k,v]});}
+function tryStart(){if(G.ready[0]&&G.ready[1]&&!G._starting){G._starting=true;setTimeout(()=>{OV.forEach(x=>x.classList.add('hide'));startMatch();G._starting=false;},450);}}
+// --- 音・振動をゲストへ ---
+let EVQ=[],emitDepth=0;
+for(const k of Object.keys(sfx)){const f=sfx[k];sfx[k]=function(...a){if(NET&&NET.role==='host'&&emitDepth===0)EVQ.push(['s',k,a]);emitDepth++;try{return f.apply(this,a)}finally{emitDepth--}}}
+{const b0=buzz;buzz=function(ms){if(NET&&NET.role==='host')EVQ.push(['b',ms]);return b0(ms)}}
+// --- 状態の送受信 ---
+function snapF(f){const o={};for(const k in f){if(k==='tap')continue;o[k]=f[k];}return o;}
+function snapshot(){
+  const g={};for(const k of ['phase','pt','t','round','cut','banner','shake','flash','cam','ready','waves','kesa','resetT'])g[k]=G[k];
+  if(G.chain){const c={};for(const k in G.chain)c[k]=G.chain[k];c.a=G.chain.a.id;c.d=G.chain.d.id;g.chain=c;}else g.chain=null;
+  // 火花・斬撃・文字は「新しく出たもの」だけ送り、ゲスト側で動かす
+  const np=[],nf=[],npo=[];
+  G.parts.forEach(q=>{if(!q._s){q._s=1;np.push([Math.round(q.x),Math.round(q.y),Math.round(q.vx),Math.round(q.vy),+q.life.toFixed(3),q.col,q.kind||'']);}});
+  G.fx.forEach(q=>{if(!q._s){q._s=1;nf.push([q.x,q.dir,q.type,q.dur,q.z||1]);}});
+  G.pops.forEach(q=>{if(!q._s){q._s=1;npo.push([q.x,q.y,q.text,q.col,q.dur]);}});
+  return{F:F.map(snapF),G:g,np,nf,npo,e:EVQ.splice(0)};
+}
+let latest=[],prevPhase=null;
+function applySnap(s){
+  s.F.forEach((o,i)=>Object.assign(F[i],o));
+  const g=s.G;for(const k in g){if(k==='chain')continue;G[k]=g[k];}
+  if(g.chain){const c=Object.assign({},g.chain);c.a=F[c.a];c.d=F[c.d];G.chain=c;}else G.chain=null;
+  s.np.forEach(q=>G.parts.push({x:q[0],y:q[1],vx:q[2],vy:q[3],life:q[4],t:0,col:q[5],kind:q[6]||undefined}));
+  s.nf.forEach(q=>G.fx.push({x:q[0],dir:q[1],type:q[2],t:0,dur:q[3],z:q[4]}));
+  s.npo.forEach(q=>G.pops.push({x:q[0],y:q[1],text:q[2],col:q[3],t:0,dur:q[4]}));
+  s.e.forEach(ev=>{if(ev[0]==='s'){const f=sfx[ev[1]];if(f)f.apply(sfx,ev[2]);}else if(ev[0]==='b')buzz(ev[1]);});
+}
+function guestTick(dt){
+  // 届いた状態を全部反映(音や火花の取りこぼしを防ぐ)
+  latest.splice(0).forEach(applySnap);
+  const ph=G.phase;
+  if(ph!==prevPhase){
+    if(ph==='over')showOver();else if(ph==='title')showTitle();
+    else if(prevPhase==='title'||prevPhase==='over'||prevPhase===null)OV.forEach(x=>x.classList.add('hide'));
+    prevPhase=ph;
+  }
+  G.fx=G.fx.filter(e=>(e.t+=dt)<e.dur);
+  G.parts=G.parts.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind!=='fire')p.vy+=600*dt;p.vx*=.97;return p.t<p.life;});
+  G.pops=G.pops.filter(p=>(p.t+=dt)<p.dur);
+  LEAVES.forEach(l=>{l.x-=(45+Math.sin(G.t+l.ph)*20)*dt;l.y+=l.vy*dt;l.r+=dt*3;
+    if(l.x<G.cam-700)l.x+=1400;if(l.x>G.cam+700)l.x-=1400;if(l.y>5){l.y=-300;}});
+  updateUI();
+}
+function netStep(dt){
+  if(NET&&NET.role==='guest'){guestTick(dt);return;}
+  update(dt);
+  if(NET&&NET.role==='host'&&NET.open)NET.send(snapshot());
+}
+function onMsg(o){
+  if(!NET)return;
+  if(NET.role==='host'){
+    if(o.i)inputRaw(1,o.i[0],!!o.i[1]);
+    if(o.pk&&(G.phase==='title'||G.phase==='over')&&!G.ready[1]){
+      if(o.pk[0]==='ch'&&CHARS[o.pk[1]])F[1].ch=o.pk[1];
+      if(o.pk[0]==='sk'){F[1].skill=SKILLS[o.pk[1]]?o.pk[1]:null;G.ready[1]=true;sfx.tick();tryStart();}
+    }
+  }else if(o.F)latest.push(o);
+}
+// --- 1人1画面 ---
+function singleView(role){
+  document.body.classList.add(role==='host'?'net-host':'net-guest');
+  setTimeout(fitCanvas,0);
+}
+// --- ロビー ---
+const $=id=>document.getElementById(id);
+function menu(html){$('netmenu').style.display='flex';$('netbody').innerHTML=html}
+function hideMenu(){$('netmenu').style.display='none'}
+function lost(msg){menu(`<p class="big">${msg}</p><button onclick="location.href=location.pathname">はじめに戻る</button>`);NET&&(NET.open=false)}
+function randCode(){const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s}
+const QS=new URLSearchParams(location.search),ROOM=(QS.get('room')||'').toLowerCase().replace(/[^a-z0-9]/g,''),LOCALT=QS.get('local')==='1';
+function wire(role,send){NET={role,open:true,send:o=>{try{send(o)}catch(e){}}};ME=role==='host'?0:1;singleView(role);hideMenu();
+  showTitle();prevPhase=null;}
+function startHost(){
+  const code=randCode(),url=location.origin+location.pathname+'?room='+code+(LOCALT?'&local=1':'');
+  menu(`<p>部屋を作りました。このリンクを友達に送ってください</p>
+    <div class="row"><input id="inv" readonly value="${url}"><button id="cp">コピー</button></div>
+    <p class="dim">相手の接続を待っています…</p>`);
+  $('cp').onclick=()=>{const i=$('inv');i.select();try{navigator.clipboard.writeText(i.value).then(()=>$('cp').textContent='コピーしました')}catch(e){document.execCommand('copy');$('cp').textContent='コピーしました'}};
+  if(LOCALT){const bc=new BroadcastChannel(PREFIX+code);bc.onmessage=ev=>{const o=ev.data;if(o.hello&&!NET){wire('host',x=>bc.postMessage(x));bc.postMessage({welcome:1});}else onMsg(o)};return}
+  const peer=new Peer(PREFIX+code);
+  peer.on('error',e=>lost(e.type==='unavailable-id'?'部屋番号が重なりました。もう一度作ってください':'接続エラー：'+(e.type||e)));
+  peer.on('connection',conn=>{if(NET){conn.close();return}
+    conn.on('open',()=>wire('host',o=>conn.send(o)));conn.on('data',onMsg);
+    conn.on('close',()=>lost('相手との接続が切れました'))});
+}
+function startGuest(){
+  menu(`<p class="big">部屋「${ROOM}」に接続中…</p>`);
+  if(LOCALT){const bc=new BroadcastChannel(PREFIX+ROOM);bc.onmessage=ev=>{const o=ev.data;if(o.welcome&&!NET)wire('guest',x=>bc.postMessage(x));else onMsg(o)};
+    const hi=setInterval(()=>{if(NET)clearInterval(hi);else bc.postMessage({hello:1})},300);return}
+  const peer=new Peer();
+  peer.on('error',e=>lost(e.type==='peer-unavailable'?'部屋が見つかりません。リンクが古いか、相手がページを閉じています':'接続エラー：'+(e.type||e)));
+  peer.on('open',()=>{const conn=peer.connect(PREFIX+ROOM,{reliable:true});
+    conn.on('open',()=>wire('guest',o=>conn.send(o)));conn.on('data',onMsg);
+    conn.on('close',()=>lost('相手との接続が切れました'))});
+}
+function boot(){
+  const noPeer=!LOCALT&&typeof Peer==='undefined';
+  if(ROOM){if(noPeer)return menu('<p class="big">通信ライブラリを読み込めませんでした</p><p class="dim">ネット接続を確認して再読み込みしてください</p>');return startGuest();}
+  menu(`<h1>風来斬</h1><p class="dim">影絵ふたり果し合い</p>
+    <button id="mLocal">一台で二人で遊ぶ</button>
+    <button id="mHost" class="sec">オンラインで部屋を作る</button>
+    <p class="dim small">部屋を作ると招待リンクが出ます。友達はそのリンクを開くだけで参加できます</p>`);
+  $('mLocal').onclick=()=>{initAudio();hideMenu();};
+  $('mHost').onclick=()=>{initAudio();if(noPeer)return menu('<p class="big">通信ライブラリを読み込めませんでした</p><button onclick="location.reload()">再読み込み</button>');startHost();};
+}
+boot();
+</script>
+</body>
+</html>
