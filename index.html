@@ -716,7 +716,7 @@ function startGuest(){lobby(`<p class="big">部屋「${ROOM}」に接続中…</
 function boot(){if(!LOCAL&&typeof Peer==='undefined'){lobby('<p class="big">通信ライブラリを読み込めませんでした</p><p class="dim">ネット接続を確認して再読み込みしてください</p>');return}
   if(ROOM)startGuest();
   else lobby(`<h1>風来斬<span>3D</span></h1><p class="dim">オンライン対戦</p><button id="mk">部屋を作る</button>
-    <p class="dim small">作ると招待リンクが出ます。友達はそのリンクを開くだけで参加できます</p>`),$('mk').onclick=()=>{initAudio();startHost()}}
+    <p class="dim small">作ると招待リンクが出ます。友達はそのリンクを開くだけで参加できます</p><hr style="border:0;border-top:1px solid #333;margin:18px 0"><button style="background:#333" onclick="location.href=\'hatashiai.html\'">影絵ふたり果し合い</button><p class="dim small">もう一つの果し合い。一台で二人でも、オンラインでも遊べます</p>`),$('mk').onclick=()=>{initAudio();startHost()}}
 addEventListener('load',boot);
 </script>
 </body>

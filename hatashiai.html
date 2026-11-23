@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>風来斬 — 影絵ふたり果し合い</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>if(typeof Peer==='undefined')document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>')</script>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;color:#f1dfc4}
 #game{position:fixed;top:0;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;display:flex;flex-direction:column;background:#000}
@@ -89,9 +91,22 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .ready{padding:12px 34px;border-radius:30px;border:1.5px solid #e0612a;background:#3a140c;color:#f6dcbc;font-size:18px;letter-spacing:.2em}
 .ready.done{background:#111;border-color:#555;color:#888}
 .who{font-size:12px;opacity:.6;margin-top:8px;font-family:sans-serif}
+body.net-host #h1,body.net-host .divider{display:none}
+body.net-guest #h0,body.net-guest .divider{display:none}
+body.net-guest .half.p2{transform:none}
+body.net-guest .p2 .ctrl{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+#netmenu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,3,2,.9);z-index:20}
+#netbody{max-width:440px;width:88%;text-align:center;padding:24px;border:1px solid #5a2a1a;background:#140a08;border-radius:12px;user-select:text;-webkit-user-select:text}
+#netmenu h1{margin:0;font-size:40px;letter-spacing:.2em;color:#f6c48a;text-shadow:0 0 18px rgba(230,90,30,.6)}
+#netmenu p{margin:10px 0;line-height:1.6}#netmenu .big{font-size:18px}#netmenu .dim{opacity:.7}#netmenu .small{font-size:12px}
+#netmenu button{display:block;width:100%;font:inherit;font-size:18px;font-weight:700;padding:12px;margin:10px 0;border:1.5px solid #e0612a;border-radius:10px;background:#3a140c;color:#f6dcbc;cursor:pointer}
+#netmenu button.sec{background:#1d0f0b;border-color:#8a4a30}
+#netmenu .row{display:flex;gap:6px}#netmenu .row input{flex:1;min-width:0;font-size:13px;padding:9px;border-radius:6px;border:1px solid #5a2a1a;background:#000;color:#fff}
+#netmenu .row button{width:auto;margin:0;font-size:14px;padding:8px 12px}
 </style>
 </head>
 <body>
+<div id="netmenu"><div id="netbody"></div></div>
 <div id="game">
   <div class="half p2" id="h1"></div>
   <div class="divider"></div>
@@ -605,16 +620,16 @@ function showOver(){
 function bindPick(o,p){
   o.querySelectorAll('.chr').forEach(el=>el.addEventListener('pointerdown',e=>{
     e.preventDefault();initAudio();if(G.ready[p])return;
-    F[p].ch=el.dataset.c;sfx.tick();
+    F[p].ch=el.dataset.c;sfx.tick();netPick(p,'ch',F[p].ch);
     o.querySelectorAll('.chr').forEach(x=>x.classList.toggle('sel',x===el));
   }));
   o.querySelectorAll('.sk,.nosk').forEach(el=>el.addEventListener('pointerdown',e=>{
     e.preventDefault();initAudio();
     if(G.ready[p])return;
-    F[p].skill=el.dataset.k||null;G.ready[p]=true;sfx.tick();
+    F[p].skill=el.dataset.k||null;G.ready[p]=true;sfx.tick();netPick(p,'sk',F[p].skill);
     o.querySelectorAll('.sk,.nosk').forEach(x=>x.classList.add(x===el?'sel':'dim'));
     o.querySelector('.who').textContent='相手を待っています…';
-    if(G.ready[0]&&G.ready[1])setTimeout(()=>{OV.forEach(x=>x.classList.add('hide'));startMatch();},450);
+    if(!(NET&&NET.role==='guest'))tryStart();
   }));
 }
 
@@ -725,6 +740,9 @@ function update(dt){
   if(G.banner&&(G.banner.t+=dt)>G.banner.dur)G.banner=null;
   LEAVES.forEach(l=>{l.x-=(45+Math.sin(G.t+l.ph)*20)*dt;l.y+=l.vy*dt;l.r+=dt*3;
     if(l.x<G.cam-700)l.x+=1400;if(l.x>G.cam+700)l.x-=1400;if(l.y>5){l.y=-300;}});
+  updateUI();
+}
+function updateUI(){
   F.forEach((f,p)=>{ // 追撃ボタン(画面中央)
     const c=G.chain,on=!!(G.phase==='fight'&&c&&c.phase==='follow'&&c.a===f);
     AK[p].classList.toggle('k3',!!G.kesa);
@@ -1092,11 +1110,135 @@ function drawHUD(ctx,w,h,v,SX,SY,sc){
 
 function loop(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
-  update(dt);render();
+  (typeof netStep==='function'?netStep:update)(dt);render();
   requestAnimationFrame(loop);
 }
 fitCanvas();showTitle();
 requestAnimationFrame(loop);
+</script>
+<script>
+// ====== オンライン対戦 (ホストが計算し、状態をゲストへ送る) ======
+let NET=null,ME=0;
+const PREFIX='fuuraizan-hatashi-';
+// --- 入力の振り分け ---
+const inputRaw=input;
+input=function(p,a,down){
+  if(!NET)return inputRaw(p,a,down);
+  if(p!==ME)return;
+  if(NET.role==='host')inputRaw(0,a,down);else NET.send({i:[a,down?1:0]});
+};
+// オンライン時のキーボード: どちらのキーでも自分の侍を動かす(自分は常に左・相手が右)
+const NKEYS={a:'b',d:'f',q:'sk',j:'v',k:'h',l:'p',ArrowLeft:'b',ArrowRight:'f',ArrowUp:'sk',',':'v','.':'h','/':'p'};
+addEventListener('keydown',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();e.preventDefault();if(!e.repeat){initAudio();input(ME,a,true);}},true);
+addEventListener('keyup',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();input(ME,a,false);},true);
+// --- 使い手・剣技の選択 ---
+function netPick(p,k,v){if(NET&&NET.role==='guest')NET.send({pk:[k,v]});}
+function tryStart(){if(G.ready[0]&&G.ready[1]&&!G._starting){G._starting=true;setTimeout(()=>{OV.forEach(x=>x.classList.add('hide'));startMatch();G._starting=false;},450);}}
+// --- 音・振動をゲストへ ---
+let EVQ=[],emitDepth=0;
+for(const k of Object.keys(sfx)){const f=sfx[k];sfx[k]=function(...a){if(NET&&NET.role==='host'&&emitDepth===0)EVQ.push(['s',k,a]);emitDepth++;try{return f.apply(this,a)}finally{emitDepth--}}}
+{const b0=buzz;buzz=function(ms){if(NET&&NET.role==='host')EVQ.push(['b',ms]);return b0(ms)}}
+// --- 状態の送受信 ---
+function snapF(f){const o={};for(const k in f){if(k==='tap')continue;o[k]=f[k];}return o;}
+function snapshot(){
+  const g={};for(const k of ['phase','pt','t','round','cut','banner','shake','flash','cam','ready','waves','kesa','resetT'])g[k]=G[k];
+  if(G.chain){const c={};for(const k in G.chain)c[k]=G.chain[k];c.a=G.chain.a.id;c.d=G.chain.d.id;g.chain=c;}else g.chain=null;
+  // 火花・斬撃・文字は「新しく出たもの」だけ送り、ゲスト側で動かす
+  const np=[],nf=[],npo=[];
+  G.parts.forEach(q=>{if(!q._s){q._s=1;np.push([Math.round(q.x),Math.round(q.y),Math.round(q.vx),Math.round(q.vy),+q.life.toFixed(3),q.col,q.kind||'']);}});
+  G.fx.forEach(q=>{if(!q._s){q._s=1;nf.push([q.x,q.dir,q.type,q.dur,q.z||1]);}});
+  G.pops.forEach(q=>{if(!q._s){q._s=1;npo.push([q.x,q.y,q.text,q.col,q.dur]);}});
+  return{F:F.map(snapF),G:g,np,nf,npo,e:EVQ.splice(0)};
+}
+let latest=[],prevPhase=null;
+function applySnap(s){
+  s.F.forEach((o,i)=>Object.assign(F[i],o));
+  const g=s.G;for(const k in g){if(k==='chain')continue;G[k]=g[k];}
+  if(g.chain){const c=Object.assign({},g.chain);c.a=F[c.a];c.d=F[c.d];G.chain=c;}else G.chain=null;
+  s.np.forEach(q=>G.parts.push({x:q[0],y:q[1],vx:q[2],vy:q[3],life:q[4],t:0,col:q[5],kind:q[6]||undefined}));
+  s.nf.forEach(q=>G.fx.push({x:q[0],dir:q[1],type:q[2],t:0,dur:q[3],z:q[4]}));
+  s.npo.forEach(q=>G.pops.push({x:q[0],y:q[1],text:q[2],col:q[3],t:0,dur:q[4]}));
+  s.e.forEach(ev=>{if(ev[0]==='s'){const f=sfx[ev[1]];if(f)f.apply(sfx,ev[2]);}else if(ev[0]==='b')buzz(ev[1]);});
+}
+function guestTick(dt){
+  // 届いた状態を全部反映(音や火花の取りこぼしを防ぐ)
+  latest.splice(0).forEach(applySnap);
+  const ph=G.phase;
+  if(ph!==prevPhase){
+    if(ph==='over')showOver();else if(ph==='title')showTitle();
+    else if(prevPhase==='title'||prevPhase==='over'||prevPhase===null)OV.forEach(x=>x.classList.add('hide'));
+    prevPhase=ph;
+  }
+  G.fx=G.fx.filter(e=>(e.t+=dt)<e.dur);
+  G.parts=G.parts.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind!=='fire')p.vy+=600*dt;p.vx*=.97;return p.t<p.life;});
+  G.pops=G.pops.filter(p=>(p.t+=dt)<p.dur);
+  LEAVES.forEach(l=>{l.x-=(45+Math.sin(G.t+l.ph)*20)*dt;l.y+=l.vy*dt;l.r+=dt*3;
+    if(l.x<G.cam-700)l.x+=1400;if(l.x>G.cam+700)l.x-=1400;if(l.y>5){l.y=-300;}});
+  updateUI();
+}
+function netStep(dt){
+  if(NET&&NET.role==='guest'){guestTick(dt);return;}
+  update(dt);
+  if(NET&&NET.role==='host'&&NET.open)NET.send(snapshot());
+}
+function onMsg(o){
+  if(!NET)return;
+  if(NET.role==='host'){
+    if(o.i)inputRaw(1,o.i[0],!!o.i[1]);
+    if(o.pk&&(G.phase==='title'||G.phase==='over')&&!G.ready[1]){
+      if(o.pk[0]==='ch'&&CHARS[o.pk[1]])F[1].ch=o.pk[1];
+      if(o.pk[0]==='sk'){F[1].skill=SKILLS[o.pk[1]]?o.pk[1]:null;G.ready[1]=true;sfx.tick();tryStart();}
+    }
+  }else if(o.F)latest.push(o);
+}
+// --- 1人1画面 ---
+function singleView(role){
+  document.body.classList.add(role==='host'?'net-host':'net-guest');
+  setTimeout(fitCanvas,0);
+}
+// --- ロビー ---
+const $=id=>document.getElementById(id);
+function menu(html){$('netmenu').style.display='flex';$('netbody').innerHTML=html}
+function hideMenu(){$('netmenu').style.display='none'}
+function lost(msg){menu(`<p class="big">${msg}</p><button onclick="location.href=location.pathname">はじめに戻る</button>`);NET&&(NET.open=false)}
+function randCode(){const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s}
+const QS=new URLSearchParams(location.search),ROOM=(QS.get('room')||'').toLowerCase().replace(/[^a-z0-9]/g,''),LOCALT=QS.get('local')==='1';
+function wire(role,send){NET={role,open:true,send:o=>{try{send(o)}catch(e){}}};ME=role==='host'?0:1;singleView(role);hideMenu();
+  showTitle();prevPhase=null;}
+function startHost(){
+  const code=randCode(),url=location.origin+location.pathname+'?room='+code+(LOCALT?'&local=1':'');
+  menu(`<p>部屋を作りました。このリンクを友達に送ってください</p>
+    <div class="row"><input id="inv" readonly value="${url}"><button id="cp">コピー</button></div>
+    <p class="dim">相手の接続を待っています…</p>`);
+  $('cp').onclick=()=>{const i=$('inv');i.select();try{navigator.clipboard.writeText(i.value).then(()=>$('cp').textContent='コピーしました')}catch(e){document.execCommand('copy');$('cp').textContent='コピーしました'}};
+  if(LOCALT){const bc=new BroadcastChannel(PREFIX+code);bc.onmessage=ev=>{const o=ev.data;if(o.hello&&!NET){wire('host',x=>bc.postMessage(x));bc.postMessage({welcome:1});}else onMsg(o)};return}
+  const peer=new Peer(PREFIX+code);
+  peer.on('error',e=>lost(e.type==='unavailable-id'?'部屋番号が重なりました。もう一度作ってください':'接続エラー：'+(e.type||e)));
+  peer.on('connection',conn=>{if(NET){conn.close();return}
+    conn.on('open',()=>wire('host',o=>conn.send(o)));conn.on('data',onMsg);
+    conn.on('close',()=>lost('相手との接続が切れました'))});
+}
+function startGuest(){
+  menu(`<p class="big">部屋「${ROOM}」に接続中…</p>`);
+  if(LOCALT){const bc=new BroadcastChannel(PREFIX+ROOM);bc.onmessage=ev=>{const o=ev.data;if(o.welcome&&!NET)wire('guest',x=>bc.postMessage(x));else onMsg(o)};
+    const hi=setInterval(()=>{if(NET)clearInterval(hi);else bc.postMessage({hello:1})},300);return}
+  const peer=new Peer();
+  peer.on('error',e=>lost(e.type==='peer-unavailable'?'部屋が見つかりません。リンクが古いか、相手がページを閉じています':'接続エラー：'+(e.type||e)));
+  peer.on('open',()=>{const conn=peer.connect(PREFIX+ROOM,{reliable:true});
+    conn.on('open',()=>wire('guest',o=>conn.send(o)));conn.on('data',onMsg);
+    conn.on('close',()=>lost('相手との接続が切れました'))});
+}
+function boot(){
+  const noPeer=!LOCALT&&typeof Peer==='undefined';
+  if(ROOM){if(noPeer)return menu('<p class="big">通信ライブラリを読み込めませんでした</p><p class="dim">ネット接続を確認して再読み込みしてください</p>');return startGuest();}
+  menu(`<h1>風来斬</h1><p class="dim">影絵ふたり果し合い</p>
+    <button id="mLocal">一台で二人で遊ぶ</button>
+    <button id="mHost" class="sec">オンラインで部屋を作る</button>
+    <p class="dim small">部屋を作ると招待リンクが出ます。友達はそのリンクを開くだけで参加できます</p>`);
+  $('mLocal').onclick=()=>{initAudio();hideMenu();};
+  $('mHost').onclick=()=>{initAudio();if(noPeer)return menu('<p class="big">通信ライブラリを読み込めませんでした</p><button onclick="location.reload()">再読み込み</button>');startHost();};
+}
+boot();
 </script>
 </body>
 </html>
