@@ -52,7 +52,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none
 .nosk{border-color:#6a5040}
 .nosk.sel{border-color:#ffb070;background:#4a1a0e;opacity:1}
 .nosk.dim{opacity:.3}
-.btn.skb{grid-column:1/3;flex-direction:column;gap:1px;background:#1a1220;border-color:#4a3060}
+.btn.czb{grid-column:2/3;flex-direction:column;gap:1px;background:linear-gradient(90deg,rgba(60,150,190,.45) calc(var(--cg,0)*100%),#0f1a22 calc(var(--cg,0)*100%));border-color:#2a5a70}
+.btn.czb b{font-size:13px;letter-spacing:.02em;color:#bff4ff;line-height:1.1}
+.btn.czb small{margin:0;font-size:9.5px;color:#bff4ff}
+.btn.czb.czready{border-color:#9ff6ff;box-shadow:0 0 0 2px #9ff6ff inset,0 0 18px rgba(140,240,255,.8);animation:czp 1s infinite}
+@keyframes czp{50%{box-shadow:0 0 0 2px #e8ffff inset,0 0 26px rgba(170,250,255,1)}}
+.btn.czb.on2{opacity:.4}
+.btn.skb{grid-column:1/2;flex-direction:column;gap:1px;background:#1a1220;border-color:#4a3060}
 .btn.skb b{font-size:16px;letter-spacing:.08em}
 .btn.skb small{margin:0;font-size:9.5px}
 .btn.spb{flex-direction:row;gap:6px;white-space:nowrap;font-size:16px;font-weight:700;letter-spacing:.1em;opacity:.35}
@@ -143,6 +149,7 @@ const C={
   flameDur:10,flameBurn:2,                    // 龍炎舞:10秒間 攻撃力2倍、毎秒2ずつ身を焦がす
   meteor:2.4,meteorDur:8,meteorCD:.3,         // 流星剣:8秒間、気力なし・ほぼ連発で長距離ステップ
   zaneiDur:7,tenganDur:8,shippu:{dist:240,time:.28},                                 // 残影:7秒間、太刀筋の予兆が相手に見えない
+  crystal:{dur:7,r:190,slow:.5,startup:1.5,step:.5,boost:1.3,shatter:10,gainHit:20,gainHurt:15,gainClang:6},
   staMax:100,staGuard:10,staStep:30,staRegen:28,stun:1.2  // スタミナ:満タンで10太刀分
 };
 // ---- 使い手 ----
@@ -220,13 +227,14 @@ const ICON={
 
 // ====== UI 生成 ======
 const H=[document.getElementById('h0'),document.getElementById('h1')];
-const ATB=[],AK=[],CV=[],OV=[],SPB=[[],[]],SKB=[],STB=[[],[]],CH=[];
+const CZB=[],ATB=[],AK=[],CV=[],OV=[],SPB=[[],[]],SKB=[],STB=[[],[]],CH=[];
 H.forEach((el,p)=>{
   el.innerHTML=`
   <canvas></canvas>
   <div class="ctrl">
     <div class="mv">
       <div class="btn skb" data-a="sk"><b>剣技</b><small></small></div>
+      <div class="btn czb" data-a="cz"><b>クリスタル<br>ゾーン</b><small>0%</small></div>
       <div class="btn step" data-a="sb">« 後ステップ</div>
       <div class="btn step" data-a="sf">前ステップ »</div>
       <div class="btn" data-a="b">◀ 後ろ</div>
@@ -247,6 +255,7 @@ H.forEach((el,p)=>{
   el.querySelectorAll('.btn').forEach(b=>{
     const a=b.dataset.a;
     if(a==='sk')SKB[p]=b;
+    if(a==='cz')CZB[p]=b;
     if(a==='sb'||a==='sf')STB[p].push(b);
     if(a==='sp')SPB[p].push(b);
     const down=e=>{e.preventDefault();initAudio();try{b.setPointerCapture(e.pointerId)}catch(_){ }b.classList.add('on');input(p,a,true);};
@@ -262,7 +271,7 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 
 // PC確認用キーボード (1P: A/D移動(2回でステップ) Q剣技 L必殺 J縦 K横 / 2P: →/←移動 ↑剣技 /必殺 ,縦 .横)
 const KEYS={a:[0,'b'],d:[0,'f'],q:[0,'sk'],j:[0,'v'],k:[0,'h'],l:[0,'p'],'/':[1,'p'],
-ArrowRight:[1,'b'],ArrowLeft:[1,'f'],ArrowUp:[1,'sk'],',':[1,'v'],'.':[1,'h']};
+e:[0,'cz'],ArrowDown:[1,'cz'],ArrowRight:[1,'b'],ArrowLeft:[1,'f'],ArrowUp:[1,'sk'],',':[1,'v'],'.':[1,'h']};
 addEventListener('keydown',e=>{const m=KEYS[e.key];if(m&&!e.repeat){initAudio();input(m[0],m[1],true);}});
 addEventListener('keyup',e=>{const m=KEYS[e.key];if(m)input(m[0],m[1],false);});
 
@@ -289,6 +298,8 @@ const sfx={
   wave(){noise(.5,1100,.6,.5);tone(300,.45,.12,'sawtooth',900)},
   flame(){noise(.8,600,.4,.6,'lowpass');tone(120,.6,.2,'sawtooth',240)},
   meteor(){tone(1400,.35,.08,'sine',2800);noise(.3,3500,.8,.25)},
+  crystal(){tone(1568,.7,.08,'sine');setTimeout(()=>tone(2093,.7,.07,'sine'),70);setTimeout(()=>tone(2637,.9,.06,'sine'),140);setTimeout(()=>tone(3136,1.1,.05,'triangle'),210);noise(.5,6000,.8,.25,'highpass')},
+  shatter(){noise(.6,5200,.5,.6,'highpass');tone(3000,.35,.07,'triangle',1200);tone(1800,.5,.05,'sine',900)},
   thunderCall(){tone(900,.4,.06,'sawtooth',300);noise(.4,2500,.6,.2)},
   thunder(){noise(.06,6000,.5,.8,'highpass');noise(1.0,180,.4,.7,'lowpass');tone(60,.9,.35,'sawtooth',35)}
 };
@@ -296,9 +307,9 @@ function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
 
 // ====== 状態 ======
 function mkF(id){return{id,dir:id===0?1:-1,x:id===0?320:680,hp:C.hp,ghost:C.hp,state:'idle',st:0,dur:0,type:'v',resp:null,gpose:'v',
-  sta:100,staG:100,mf:false,mb:false,cdF:0,cdB:0,sv:0,kb:0,walk:0,moving:0,flash:0,wins:0,pose:{hx:18,hy:-64,a:-.4,lean:0}};}
+  sta:100,staG:100,mf:false,mb:false,cdF:0,cdB:0,sv:0,kb:0,walk:0,moving:0,flash:0,wins:0,cg:0,pose:{hx:18,hy:-64,a:-.4,lean:0}};}
 const F=[mkF(0),mkF(1)];
-const G={bolts:[],waves:[],phase:'title',pt:0,t:0,round:1,chain:null,fx:[],parts:[],pops:[],banner:null,shake:0,flash:0,cam:500,ready:[false,false]};
+const G={zones:[],bolts:[],waves:[],phase:'title',pt:0,t:0,round:1,chain:null,fx:[],parts:[],pops:[],banner:null,shake:0,flash:0,cam:500,ready:[false,false]};
 
 function setState(f,s,dur){f.state=s;f.st=0;f.dur=dur||0;}
 
@@ -317,6 +328,7 @@ function input(p,a,down){
   if(!down)return;
   if(G.phase!=='fight'||G.resetT>0)return;
   if(a==='sk')return useSkill(p);
+  if(a==='cz')return useCrystal(p);
   if(a==='p')return doPalm(f);
   if(a==='sf'||a==='sb')return doStep(f,a==='sf'?1:-1);
   if(a==='v'||a==='h'||(a==='k'&&G.kesa))return doAttack(f,a);
@@ -324,7 +336,7 @@ function input(p,a,down){
 function doStep(f,s){
   const met=f.meteor>0;
   if(G.chain||f.state!=='idle'||f.bind>0||(s>0?f.cdF:f.cdB)>0||(!met&&f.sta<C.staStep))return;
-  const dist=CHR(f).stepDist;
+  const dist=CHR(f).stepDist*(trapped(f)?C.crystal.step:1);
   if(met){ // 流星剣:気力を使わず長距離ステップ
     f.metStep=true;setState(f,'step',C.stepTime*1.5);f.sv=s*dist*C.meteor/f.dur;sfx.meteor();
   }else{if(!(f.kiai>0))f.sta-=C.staStep;f.metStep=false;setState(f,'step',C.stepTime);f.sv=s*dist/C.stepTime;sfx.step();}
@@ -347,18 +359,43 @@ function doAttack(f,type){
   if(o.state==='startup'&&o.type!=='x'&&dist<=AT(o,o.type).reach+70){ // 重撃は受けられない→斬って止めるしかない
     f.resp=type;setState(f,'guard');sfx.ready();return;
   }
-  f.type=type;f.resp=null;setState(f,'startup',AT(f,type).startup);sfx.ready();
+  f.type=type;f.resp=null;setState(f,'startup',AT(f,type).startup*(trapped(f)?C.crystal.startup:1));sfx.ready();
 }
 
 // ====== ゲーム進行 ======
-function mult(f){return f.flame>0?2:1;}
-function dmgOf(f,t){return AT(f,t).dmg*mult(f);}
+function zoneOf(owner){return G.zones.find(z=>z.owner===owner);}
+function trapped(f){const z=zoneOf(1-f.id);return !!(z&&Math.abs(f.x-z.x)<z.r);} // 相手の結界の中にいる
+function empowered(f){const z=zoneOf(f.id);return !!(z&&Math.abs(f.x-z.x)<z.r);} // 自分の結界の中にいる
+function mult(f){return (f.flame>0?2:1)*(empowered(f)?C.crystal.boost:1);}
+function useCrystal(p){
+  const f=F[p],o=F[1-p];
+  if(G.phase!=='fight'||G.chain||f.state!=='idle'||f.cg<100||zoneOf(p))return;
+  f.cg=0;G.zones.push({owner:p,x:(f.x+o.x)/2,t:0,dur:C.crystal.dur,r:C.crystal.r});
+  sfx.crystal();G.flash=.55;G.shake=.3;buzz([30,30,60]);
+  G.banner={text:'クリスタルゾーン',sub:null,t:0,dur:1.2};
+  for(let i=0;i<30;i++){const a=Math.random()*Math.PI,s=150+Math.random()*250,x=(f.x+o.x)/2;G.parts.push({x,y:-10,vx:Math.cos(a)*s,vy:-Math.sin(a)*s,life:.6,t:0,col:i%2?'#bff4ff':'#ffffff',kind:'shard'});}
+}
+function updateZones(dt){
+  G.zones=G.zones.filter(z=>{
+    z.t+=dt;
+    if(Math.random()<dt*10)G.parts.push({x:z.x+(Math.random()*2-1)*z.r,y:-Math.random()*z.r*.7,vx:0,vy:-25,life:.7,t:0,col:'#bff4ff',kind:'fire'});
+    if(z.t>=z.dur){ // 結界が砕け、中の相手に傷を負わせる
+      const o=F[1-z.owner];sfx.shatter();G.flash=.4;
+      for(let i=0;i<40;i++){const a=Math.random()*Math.PI*2,s=120+Math.random()*320;G.parts.push({x:z.x+Math.cos(a)*z.r*.6,y:-z.r*.35+Math.sin(a)*z.r*.3,vx:Math.cos(a)*s,vy:Math.sin(a)*s-60,life:.7,t:0,col:i%3?'#bff4ff':'#ffffff',kind:'shard'});}
+      if(G.phase==='fight'&&o.state!=='locked'&&Math.abs(o.x-z.x)<z.r){if(hurt(o,C.crystal.shatter,false))pop(o.x,-150,'砕晶 −'+C.crystal.shatter,'#bff4ff');}
+      return false;
+    }
+    return true;
+  });
+}
+function addCg(f,v){f.cg=Math.min(100,(f.cg||0)+v);}
+function dmgOf(f,t){return Math.round(AT(f,t).dmg*mult(f));}
 function chD(f,t){return Math.max(1,Math.round(dmgOf(f,t)*C.chainMul));} // 斬り合いで積み重なる1太刀ぶん
 function spD(f){return Math.max(1,Math.round(C.sp.dmg*mult(f)*C.chainMul));}
 // 受けの正誤:縦には横、横には縦、袈裟には袈裟でしか返せない
 function counters(resp,t){return t==='k'?resp==='k':(resp!=='k'&&resp!==t);}
 function counterOf(t){return t==='k'?'k':(t==='v'?'h':'v');}
-function hitOf(f,t){return AT(f,t).hit*mult(f);}
+function hitOf(f,t){return Math.round(AT(f,t).hit*mult(f));}
 function followWin(n){return Math.max(C.minFollow,C.followBase*Math.pow(C.decay,n-1));}
 function guardWin(n,t){return Math.max(C.minGuard,C.atk[t].base*Math.pow(C.decay,n));}
 
@@ -425,7 +462,7 @@ function chainPress(p,type){
 }
 function doPalm(f){
   if(G.chain||f.state!=='idle')return;
-  setState(f,'palm',C.palm.startup);f.palmDone=false;sfx.swing();
+  setState(f,'palm',C.palm.startup*(trapped(f)?C.crystal.startup:1));f.palmDone=false;sfx.swing();
 }
 function resolvePalm(f){
   const o=F[1-f.id];f.palmDone=true;
@@ -433,9 +470,9 @@ function resolvePalm(f){
   setState(f,'palmHit',.3);
   const sx=f.x+f.dir*42;G.parts.push({x:sx,y:-80,vx:0,vy:0,life:.25,t:0,col:'#fff4e0',kind:'ring'});
   sparks(sx,-80,'#fff0d0',14);sfx.slap();
-  if(hurt(o,C.palm.dmg*mult(f),false)){
+  if(hurt(o,Math.round(C.palm.dmg*mult(f)),false)){
     o.kb=C.palm.kb;setState(o,'hitstun',.6);
-    pop(o.x,-150,'−'+C.palm.dmg*mult(f),'#ff6a4a');
+    pop(o.x,-150,'−'+Math.round(C.palm.dmg*mult(f)),'#ff6a4a');
   }
 }
 function useSkill(p){
@@ -473,7 +510,7 @@ function updateBolts(dt){
     if(!b.hit&&b.t>=.6){b.hit=true;sfx.thunder();G.flash=.7;G.shake=.6;
       const o=F[b.owner],tg=F[1-b.owner];
       sparks(b.x,-20,'#dfe8ff',26);
-      if(G.phase==='fight'&&tg.state!=='locked'&&Math.abs(tg.x-b.x)<55){const dm=14*mult(o);if(hurt(tg,dm,true,false))pop(tg.x,-150,'−'+dm,'#ff6a4a');}
+      if(G.phase==='fight'&&tg.state!=='locked'&&Math.abs(tg.x-b.x)<55){const dm=Math.round(14*mult(o));if(hurt(tg,dm,true,false))pop(tg.x,-150,'−'+dm,'#ff6a4a');}
     }
     return b.t<.9;
   });
@@ -543,6 +580,7 @@ function hurt(d,dmg,big,stun,src){
   if(d.kongou>0)dmg=Math.max(1,Math.ceil(dmg/2));
   {const at=F[1-d.id];if(at.kyuumei>0&&dmg>0){const hl=Math.ceil(dmg/2);at.hp=Math.min(maxHp(at),at.hp+hl);pop(at.x,-170,'+'+hl,'#d8a0ff');}}
   d.hp=Math.max(0,d.hp-dmg);
+  addCg(d,C.crystal.gainHurt);addCg(F[1-d.id],C.crystal.gainHit);
   if(d.hp<=0&&CHR(d).undying&&!d.undyUsed){d.hp=1;d.undyUsed=true;pop(d.x,-175,'まだだ…!','#c0d8c0');G.banner={text:'骸、踏みとどまる',sub:null,t:0,dur:1.3};}
   if(stun){setState(d,'stun',C.stun);d.kb=110;}
   else{setState(d,'hitstun',big?.8:.55);d.kb=big?440:300;}
@@ -563,7 +601,7 @@ function updateF(f,dt){
   switch(f.state){
     case 'idle':{
       let v=0;
-      if(G.phase==='fight'&&!(f.bind>0)){const ch=CHR(f);if(f.mf&&!f.mb)v=ch.walkF;else if(f.mb&&!f.mf)v=-ch.walkB;}
+      if(G.phase==='fight'&&!(f.bind>0)){const ch=CHR(f);if(f.mf&&!f.mb)v=ch.walkF;else if(f.mb&&!f.mf)v=-ch.walkB;if(trapped(f))v*=C.crystal.slow;}
       if(CHR(f).gear)f.sta=Math.min(C.staMax,f.sta+C.staRegen*.6*dt);
       f.x+=f.dir*v*dt;f.moving=v;if(v)f.walk+=dt*(v>0?10:-9);
       if(v>0)f.sta=Math.min(C.staMax,f.sta+C.staRegen*dt); // 前進で回復
@@ -584,7 +622,7 @@ function updateF(f,dt){
     case 'palm':if(f.st>=f.dur)resolvePalm(f);break;
     case 'palmHit':if(f.st>=f.dur)setState(f,'idle');break;
     case 'cast':
-      if(!f.castDone&&f.st>=.2){f.castDone=true;G.waves.push({owner:f.id,x:f.x+f.dir*40,dir:f.dir,t:0,dmg:C.wave.dmg*mult(f)});sfx.wave();slashFx(f,'v');}
+      if(!f.castDone&&f.st>=.2){f.castDone=true;G.waves.push({owner:f.id,x:f.x+f.dir*40,dir:f.dir,t:0,dmg:Math.round(C.wave.dmg*mult(f))});sfx.wave();slashFx(f,'v');}
       if(f.st>=f.dur)setState(f,'idle');break;
     case 'startup':
       if(f.lunge>0){f.x+=f.dir*C.shippu.dist/C.shippu.time*dt;f.lunge-=dt;f.moving=1;} // 疾風斬の踏み込み
@@ -605,6 +643,7 @@ function separate(){
 // ====== 演出 ======
 function slashFx(f,type){G.fx.push({x:f.x,dir:f.dir,type,t:0,dur:.24,z:CHR(f).size});}
 function clangFx(a,type){
+  addCg(a,C.crystal.gainClang);addCg(F[1-a.id],C.crystal.gainClang);
   const d=F[1-a.id];
   sparks((a.x+d.x)/2,type==='h'?-70:-90,'#fff0c0',22);
   pop((a.x+d.x)/2,type==='v'?-120:-95,'キン!','#fff4d0');
@@ -636,9 +675,9 @@ function shikiri(){ // 仕切り直し:最初の立ち位置へ
 function resetRound(){
   G.resetT=0;G.cut=null;G.kesa=false;
   F.forEach(f=>{f.dir=f.id===0?1:-1;f.x=f.id===0?320:680;f.hp=f.ghost=maxHp(f);f.sta=f.staG=C.staMax;setState(f,'idle');f.resp=null;f.cdF=f.cdB=0;f.kb=0;f.flash=0;f.pose={hx:18,hy:-64,a:-.4,lean:0};f.skillUsed=false;f.flame=0;f.meteor=0;f.zanei=0;f.tengan=0;f.shield=false;f.lunge=0;f.metStep=false;f.tap=null;f.kongou=0;f.kyuumei=0;f.kiai=0;f.bind=0;f.undyUsed=false;});
-  G.chain=null;G.waves=[];G.bolts=[];G.phase='intro';G.pt=0;G.cam=500;G.banner=null;G.pops=[];
+  G.chain=null;G.waves=[];G.bolts=[];G.zones=[];G.phase='intro';G.pt=0;G.cam=500;G.banner=null;G.pops=[];
 }
-function startMatch(){F.forEach(f=>{f.wins=0;f.spUsed=false;});G.round=1;resetRound();}
+function startMatch(){F.forEach(f=>{f.wins=0;f.spUsed=false;f.cg=0;});G.round=1;resetRound();}
 
 function pickHTML(p){
   const cur=F[p].ch||'samurai';
@@ -771,7 +810,7 @@ function update(dt){
   }
   if(G.phase==='fight'||G.phase==='ko'){
     if(G.chain)updateChain(gdt);else F.forEach(f=>updateF(f,gdt));
-    updateWaves(gdt);updateBolts(gdt);
+    updateWaves(gdt);updateBolts(gdt);updateZones(gdt);
     separate();
     F.forEach(f=>{
       if(f.flame>0){ // 龍炎舞:炎をまとい身を焦がす
@@ -817,6 +856,13 @@ function updateUI(){
     if(f.tengan>0&&cc&&cc.d===f&&cc.phase==='swing')want=counterOf(cc.type); // 天眼:連撃中も受けが見える
     ATB[p].v.classList.toggle('hint',want==='v');ATB[p].h.classList.toggle('hint',want==='h');
     STB[p].forEach(b=>b.style.setProperty('--cd',((b.dataset.a==='sf'?f.cdF:f.cdB)/C.stepCD).toFixed(3)));
+  });
+  F.forEach((f,p)=>{
+    const b=CZB[p];if(!b)return;const cg=Math.floor(f.cg||0),z=zoneOf(p);
+    b.style.setProperty('--cg',(cg/100).toFixed(3));
+    b.classList.toggle('czready',cg>=100&&G.phase==='fight'&&!G.chain&&!z);
+    const t=z?`展開中 残り${Math.ceil(z.dur-z.t)}秒`:cg>=100?'発動できる!':cg+'%';
+    if(b._t!==t){b._t=t;b.querySelector('small').textContent=t;}
   });
   F.forEach((f,p)=>{
     const b=SKB[p],sk=SKILLS[f.skill];
@@ -872,8 +918,27 @@ function renderView(v){
   // 草(奥)
   ctx.strokeStyle='#070404';ctx.lineCap='round';
   tile(ctx,cam,1800,()=>GRASS.forEach(gr=>{if(!gr.front)grass(ctx,gr);}));
+  // クリスタルゾーン(結晶の結界)
+  G.zones.forEach(z=>{
+    const k=Math.min(1,z.t/.25),end=Math.max(0,1-(z.dur-z.t)/.6),r=z.r*(.6+.4*k),hh=r*.78;
+    const flick=z.dur-z.t<1.5&&Math.sin(G.t*30)>0?.55:1;
+    ctx.save();ctx.globalAlpha=flick*(1-end*.6);
+    const gr=ctx.createLinearGradient(0,-hh,0,0);gr.addColorStop(0,'rgba(190,245,255,.06)');gr.addColorStop(1,'rgba(150,230,255,.22)');
+    ctx.fillStyle=gr;ctx.beginPath();ctx.ellipse(z.x,0,r,hh,0,Math.PI,0);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(200,250,255,.55)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(z.x,0,r,hh,0,Math.PI,0);ctx.stroke();
+    ctx.strokeStyle='rgba(200,250,255,.22)';ctx.lineWidth=1;
+    for(let i=1;i<6;i++){const a=Math.PI+i*Math.PI/6;ctx.beginPath();ctx.moveTo(z.x,-hh);ctx.lineTo(z.x+Math.cos(a)*r,-Math.sin(a)*hh*-1);ctx.stroke();}
+    for(let j=1;j<3;j++){ctx.beginPath();ctx.ellipse(z.x,0,r*j/3,hh*j/3*1.4>hh?hh:hh*j/3*1.4,0,Math.PI,0);ctx.stroke();}
+    // 地面の結晶
+    ctx.fillStyle='rgba(210,250,255,.85)';
+    [-1,1].forEach(sd=>{for(let i=0;i<3;i++){const bx=z.x+sd*(r-8-i*14),bh=(26-i*7)*k;ctx.beginPath();ctx.moveTo(bx-5,0);ctx.lineTo(bx-2,-bh);ctx.lineTo(bx+1,-bh-6);ctx.lineTo(bx+5,0);ctx.closePath();ctx.fill();}});
+    ctx.restore();
+  });
   // 侍
   F.forEach(f=>drawSamurai(ctx,f));
+  // 結界に捕らわれた侍は結晶の霜をまとう
+  F.forEach(f=>{if(trapped(f)){ctx.save();ctx.strokeStyle=`rgba(200,250,255,${.4+.2*Math.sin(G.t*10)})`;ctx.lineWidth=2;const zz=CHR(f).draw||1;
+    for(let i=0;i<5;i++){const yy=-20-i*22*zz,ww=12+(i%2)*6;ctx.beginPath();ctx.moveTo(f.x-ww,yy);ctx.lineTo(f.x,yy-8);ctx.lineTo(f.x+ww,yy);ctx.stroke();}ctx.restore();}});
   // 太刀筋の予兆(縦=縦長の三日月 / 横=横長の三日月)
   telegraphs().forEach(([f,t,k])=>{
     if(f.zanei>0&&f.id!==v)return; // 残影:相手には太刀筋が見えない
@@ -917,6 +982,7 @@ function renderView(v){
   G.parts.forEach(p=>{const a=1-p.t/p.life;ctx.globalAlpha=a;
     if(p.kind==='ring'){ctx.strokeStyle=p.col;ctx.lineWidth=4*a;ctx.beginPath();ctx.arc(p.x,p.y,10+60*(1-a),0,7);ctx.stroke();return;}
     if(p.kind==='fire'){ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,1+4*a,0,7);ctx.fill();return;}
+    if(p.kind==='shard'){ctx.fillStyle=p.col;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.t*12);ctx.beginPath();ctx.moveTo(0,-6*a-2);ctx.lineTo(3,0);ctx.lineTo(0,6*a+2);ctx.lineTo(-3,0);ctx.closePath();ctx.fill();ctx.restore();return;}
     ctx.strokeStyle=p.col;ctx.lineWidth=2.2;
     ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.03,p.y-p.vy*.03);ctx.stroke();});
   ctx.globalAlpha=1;
@@ -1179,6 +1245,8 @@ function drawHUD(ctx,w,h,v,SX,SY,sc){
     ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x-2,sy,bw+4,7);
     ctx.fillStyle=low&&Math.sin(G.t*14)>0?'#ff8a3a':'#e8c35a';
     ctx.fillRect(right?x+bw*(1-ks):x,sy+1.5,bw*ks,4);
+    {const kc=(f.cg||0)/100,cy=sy+8;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x-2,cy,bw+4,5);
+     ctx.fillStyle=kc>=1?(Math.sin(G.t*10)>0?'#e8ffff':'#8ff0ff'):'#5fc8e8';ctx.fillRect(right?x+bw*(1-kc):x,cy+1,bw*kc,3);}
     ctx.fillStyle='rgba(0,0,0,.55)';for(let i=1;i<10;i++)ctx.fillRect(x+bw*i/10-.5,sy+1.5,1,4);
     for(let i=0;i<C.winsNeeded;i++){
       const cx=right?x+bw-6-i*14:x+6+i*14;ctx.beginPath();ctx.arc(cx,y0+bh+20,4.5,0,7);
@@ -1289,7 +1357,7 @@ input=function(p,a,down){
   if(NET.role==='host')inputRaw(0,a,down);else NET.send({i:[a,down?1:0]});
 };
 // オンライン時のキーボード: どちらのキーでも自分の侍を動かす(自分は常に左・相手が右)
-const NKEYS={a:'b',d:'f',q:'sk',j:'v',k:'h',l:'p',ArrowLeft:'b',ArrowRight:'f',ArrowUp:'sk',',':'v','.':'h','/':'p'};
+const NKEYS={e:'cz',ArrowDown:'cz',a:'b',d:'f',q:'sk',j:'v',k:'h',l:'p',ArrowLeft:'b',ArrowRight:'f',ArrowUp:'sk',',':'v','.':'h','/':'p'};
 addEventListener('keydown',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();e.preventDefault();if(!e.repeat){initAudio();input(ME,a,true);}},true);
 addEventListener('keyup',e=>{if(!NET)return;const a=NKEYS[e.key];if(!a)return;e.stopImmediatePropagation();input(ME,a,false);},true);
 // --- 使い手・剣技の選択 ---
@@ -1302,7 +1370,7 @@ for(const k of Object.keys(sfx)){const f=sfx[k];sfx[k]=function(...a){if(NET&&NE
 // --- 状態の送受信 ---
 function snapF(f){const o={};for(const k in f){if(k==='tap')continue;o[k]=f[k];}return o;}
 function snapshot(){
-  const g={};for(const k of ['phase','pt','t','round','cut','banner','shake','flash','cam','ready','waves','bolts','kesa','resetT'])g[k]=G[k];
+  const g={};for(const k of ['phase','pt','t','round','cut','banner','shake','flash','cam','ready','waves','bolts','zones','kesa','resetT'])g[k]=G[k];
   if(G.chain){const c={};for(const k in G.chain)c[k]=G.chain[k];c.a=G.chain.a.id;c.d=G.chain.d.id;g.chain=c;}else g.chain=null;
   // 火花・斬撃・文字は「新しく出たもの」だけ送り、ゲスト側で動かす
   const np=[],nf=[],npo=[];
